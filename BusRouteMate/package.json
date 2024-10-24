@@ -2,7 +2,6 @@
   "name": "busroutemate",
   "version": "1.0.0",
   "main": "expo-router/entry",
-  
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -11,10 +10,12 @@
   },
   "dependencies": {
     "expo": "~51.0.28",
+    "expo-router": "~3.5.23",
     "expo-status-bar": "~1.12.1",
     "react": "18.2.0",
     "react-native": "0.74.5",
-    "expo-router": "~3.5.23"
+    "react-native-paper": "^5.12.5",
+    "react-native-ui-lib": "^7.32.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
