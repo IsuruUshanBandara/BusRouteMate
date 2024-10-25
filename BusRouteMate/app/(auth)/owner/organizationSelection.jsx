@@ -2,13 +2,14 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet,View } from 'react-native';
 import * as React from 'react';
 import { Card, Text } from 'react-native-paper';
-
+import { useRouter } from 'expo-router';
 const OrganizationCategories = () =>  {
+  const router = useRouter();
   return (
     <View style={styles.container}>
       <Text style={styles.subheading}>Select your bus organization</Text>
       {/* Full-width Card 1 */}
-      <Card style={styles.card} onPress={() => console.log("Card 1 Pressed")}>
+      <Card style={styles.card} onPress={() => router.push('owner/sltbSignin')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="SLTB Organization" subtitle="Sign in/Sign up" />
       </Card>
 
@@ -40,7 +41,7 @@ const styles = StyleSheet.create({
     marginVertical: '5%', // Vertical spacing between cards
     elevation: 4, // Adds shadow effect on Android
     borderRadius: 10, // Rounded corners
-    height: 100, // Card height
+    height: '13%', // Card height
     justifyContent: 'center', // Centers the content vertically
     flexDirection: 'column', // Arranges the content in a column
   },

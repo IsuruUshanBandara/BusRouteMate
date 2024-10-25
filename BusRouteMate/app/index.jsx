@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     marginVertical: '5%', // Vertical spacing between cards
     elevation: 4, // Adds shadow effect on Android
     borderRadius: 10, // Rounded corners
-    height: 100, // Card height
+    height: '13%', // Card height
     justifyContent: 'center', // Centers the content vertically
     flexDirection: 'column', // Arranges the content in a column
   },
