@@ -1,29 +1,50 @@
-import React,{useState} from 'react'
-import { View, Text,StyleSheet,TouchableOpacity } from 'react-native'
+import { View, Text,StyleSheet } from 'react-native'
+import React,{ useState } from 'react'
 import { TextInput,IconButton,Button } from 'react-native-paper'
 import { useRouter } from 'expo-router'
-const PrivateBusSignIn = () => {
+const PrivateBusSignUp = () => {
     const router = useRouter();
+    const[email,setEmail] = useState('');
     const[phoneNumber,setPhoneNumber] = useState('');
+    const[nationalIdentityNum,setNationalIdentityNum] = useState('');
     const[password,setPassword] = useState('');
+    const[confirmPassword,setConfirmPassword] = useState('');
     const[showPassword,setShowPassword] = useState(false);
-    const handleSignIn = () => {
+    const handleSignUp = () => {
         console.log(password);
         console.log(phoneNumber);
     };
   return (
     <View style={styles.container}>
         <View style={styles.subHeadingContainer}>
-            <Text style={styles.subHeading}>Sign In</Text>
+            <Text style={styles.subHeading}>Sign Up</Text>
         </View>
         <View style={styles.inputContainer}>
-        <TextInput 
+            <TextInput 
+            style={styles.input}
+            label="Email"
+            value={email}
+            onChangeText={text => setEmail(text)}
+            mode='outlined'
+            // keyboardType='phone-pad'
+            />
+
+            <TextInput 
             style={styles.input}
             label="Phone Number"
             value={phoneNumber}
             onChangeText={text => setPhoneNumber(text)}
             mode='outlined'
             keyboardType='phone-pad'
+            />
+
+            <TextInput 
+            style={styles.input}
+            label="National Identity Card Number"
+            value={nationalIdentityNum}
+            onChangeText={text => setNationalIdentityNum(text)}
+            mode='outlined'
+            // keyboardType='phone-pad'
             />
 
             <TextInput 
@@ -40,17 +61,33 @@ const PrivateBusSignIn = () => {
                 />
             }
             />
-             <TouchableOpacity onPress={() => console.log("Forgot Password? Pressed")}>
+
+            <TextInput 
+            style={styles.input}
+            label="Confirm Password"
+            value={confirmPassword}
+            onChangeText={text => setConfirmPassword(text)}
+            mode='outlined'
+            secureTextEntry={!showPassword}//if showPassword is false, secureTextEntry is true
+            right={
+                <TextInput.Icon 
+                    icon={showPassword ? 'eye-off' : 'eye'} 
+                    onPress={() => setShowPassword(!showPassword)} 
+                />
+            }
+            />
+             {/* <TouchableOpacity onPress={() => console.log("Forgot Password? Pressed")}>
                     <Text style={styles.forgotPassword}>Forgot Password?</Text>
-            </TouchableOpacity>
-            <Button mode='contained' style={styles.signInButton} onPress={handleSignIn}>Sign In</Button>
+            </TouchableOpacity> */}
+            <Button mode='contained' style={styles.signUpButton} onPress={handleSignUp}>Sign Up</Button>
             <Button mode='contained' style={styles.createAccountButton} onPress={()=>router.push('owner/privateSignUp')}>Create Account</Button>
         </View>
     </View>
   )
 }
 
-export default PrivateBusSignIn
+export default PrivateBusSignUp
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -77,7 +114,7 @@ const styles = StyleSheet.create({
         marginBottom: 20,
         color: '#007AFF', // Blue color for "Forgot Password?"
     },
-    signInButton: {
+    signUpButton: {
         marginTop: '10%',
         // paddingVertical: '1%',
         width: '50%',
