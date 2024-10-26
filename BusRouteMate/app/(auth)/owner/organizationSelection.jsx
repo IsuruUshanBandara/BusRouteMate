@@ -12,12 +12,12 @@ const OrganizationCategories = () =>  {
       </View>
       <View style={styles.cardsContainer}>
       {/* SLTB bus sing in card */}
-      <Card style={styles.card} onPress={() => router.push('owner/sltbSignin')}>
+      <Card style={styles.card} onPress={() => router.push('owner/sltbSignIn')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="SLTB Organization" subtitle="Sign in/Sign up" />
       </Card>
 
       {/* Private bus sign in card */}
-      <Card style={styles.card} onPress={() => router.push('owner/privateSignin')}>
+      <Card style={styles.card} onPress={() => router.push('owner/privateSignIn')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Private Organization" subtitle="Sign in/Sign up" />
       </Card>
       </View>
