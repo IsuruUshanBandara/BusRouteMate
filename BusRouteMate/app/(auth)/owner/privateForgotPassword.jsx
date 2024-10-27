@@ -3,18 +3,19 @@ import React, { useState } from 'react';
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 
-const PrivateBusSignUp = () => {
+const PrivateBusForgotPassword = () => {
     const router = useRouter();
-    const [email, setEmail] = useState('');
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [nationalIdentityNum, setNationalIdentityNum] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-
-    const handleSignUp = () => {
-        console.log(password);
-        console.log(phoneNumber);
+    const [forgotPwdphoneNumber, setForgotPwdPhoneNumber] = useState('');
+    const [forgotPwdNationalIdentityNum, setForgotPwdNationalIdentityNum] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [newConfirmPassword, setNewConfirmPassword] = useState('');
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const handleSignIn = () => {
+        console.log(newPassword);
+        console.log(forgotPwdphoneNumber);
+        console.log(forgotPwdNationalIdentityNum);
+        console.log(newConfirmPassword);
     };
 
     return (
@@ -26,22 +27,16 @@ const PrivateBusSignUp = () => {
                 <ScrollView contentContainerStyle={styles.scrollContainer}>
                     <View style={styles.centeredContent}>
                         <View style={styles.subHeadingContainer}>
-                            <Text style={styles.subHeading}>Sign Up</Text>
+                            <Text style={styles.subHeading}>Forgot Password</Text>
                         </View>
 
-                        <TextInput 
-                            style={styles.input}
-                            label="Email"
-                            value={email}
-                            onChangeText={text => setEmail(text)}
-                            mode="outlined"
-                        />
+                       
 
                         <TextInput 
                             style={styles.input}
                             label="Phone Number"
-                            value={phoneNumber}
-                            onChangeText={text => setPhoneNumber(text)}
+                            value={forgotPwdphoneNumber}
+                            onChangeText={text => setForgotPwdPhoneNumber(text)}
                             mode="outlined"
                             keyboardType="phone-pad"
                         />
@@ -49,47 +44,47 @@ const PrivateBusSignUp = () => {
                         <TextInput 
                             style={styles.input}
                             label="National Identity Card Number"
-                            value={nationalIdentityNum}
-                            onChangeText={text => setNationalIdentityNum(text)}
+                            value={forgotPwdNationalIdentityNum}
+                            onChangeText={text => setForgotPwdNationalIdentityNum(text)}
                             mode="outlined"
                         />
 
                         <TextInput 
                             style={styles.input}
-                            label="Password"
-                            value={password}
-                            onChangeText={text => setPassword(text)}
+                            label="NewPassword"
+                            value={newPassword}
+                            onChangeText={text => setNewPassword(text)}
                             mode="outlined"
-                            secureTextEntry={!showPassword}
+                            secureTextEntry={!showNewPassword}
                             right={
                                 <TextInput.Icon 
-                                    icon={showPassword ? 'eye-off' : 'eye'} 
-                                    onPress={() => setShowPassword(!showPassword)} 
+                                    icon={showNewPassword ? 'eye-off' : 'eye'} 
+                                    onPress={() => setShowNewPassword(!showNewPassword)} 
                                 />
                             }
                         />
 
                         <TextInput 
                             style={styles.input}
-                            label="Confirm Password"
-                            value={confirmPassword}
-                            onChangeText={text => setConfirmPassword(text)}
+                            label="Confirm New Password"
+                            value={newConfirmPassword}
+                            onChangeText={text => setNewConfirmPassword(text)}
                             mode="outlined"
-                            secureTextEntry={!showPassword}
+                            secureTextEntry={!showConfirmPassword}
                             right={
                                 <TextInput.Icon 
-                                    icon={showPassword ? 'eye-off' : 'eye'} 
-                                    onPress={() => setShowPassword(!showPassword)} 
+                                    icon={showConfirmPassword ? 'eye-off' : 'eye'} 
+                                    onPress={() => setShowConfirmPassword(!showConfirmPassword)} 
                                 />
                             }
                         />
 
                         <Button 
                             mode="contained" 
-                            style={styles.signUpButton} 
-                            onPress={handleSignUp}
+                            style={styles.signInButton} 
+                            onPress={handleSignIn}
                         >
-                            Sign Up
+                            Sign In
                         </Button>
                     </View>
                 </ScrollView>
@@ -98,7 +93,7 @@ const PrivateBusSignUp = () => {
     );
 };
 
-export default PrivateBusSignUp;
+export default PrivateBusForgotPassword;
 
 const styles = StyleSheet.create({
     container: {
@@ -126,7 +121,7 @@ const styles = StyleSheet.create({
     input: {
         marginVertical: 10,
     },
-    signUpButton: {
+    signInButton: {
         marginTop: 20,
         paddingVertical: 6,
         width: '100%',

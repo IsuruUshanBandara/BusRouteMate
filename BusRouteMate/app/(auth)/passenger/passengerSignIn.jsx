@@ -3,15 +3,15 @@ import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platfor
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 
-const PrivateBusSignIn = () => {
+const PassengerSignIn = () => {
     const router = useRouter();
-    const [phoneNumber, setPhoneNumber] = useState('');
+    const [passengerEmail, setPassengerEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
     const handleSignIn = () => {
-        console.log(password);
-        console.log(phoneNumber);
+        console.log('Password',password);
+        console.log('Email',passengerEmail);
     };
 
     return (
@@ -26,11 +26,11 @@ const PrivateBusSignIn = () => {
 
                         <TextInput
                             style={styles.input}
-                            label="Phone Number"
-                            value={phoneNumber}
-                            onChangeText={text => setPhoneNumber(text)}
+                            label="Email"
+                            value={passengerEmail}
+                            onChangeText={text => setPassengerEmail(text)}
                             mode='outlined'
-                            keyboardType='phone-pad'
+                            
                         />
 
                         <TextInput
@@ -51,7 +51,7 @@ const PrivateBusSignIn = () => {
                             <Text style={styles.forgotPassword}>Forgot Password?</Text>
                         </TouchableOpacity>
                         <Button mode='contained' style={styles.signInButton} onPress={handleSignIn}>Sign In</Button>
-                        <Button mode='contained' style={styles.createAccountButton} onPress={() => router.push('owner/privateSignUp')}>Create Account</Button>
+                        <Button mode='contained' style={styles.createAccountButton} onPress={() => router.push('passenger/passengerSignUp')}>Create Account</Button>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -59,7 +59,7 @@ const PrivateBusSignIn = () => {
     );
 };
 
-export default PrivateBusSignIn;
+export default PassengerSignIn;
 
 const styles = StyleSheet.create({
     container: {

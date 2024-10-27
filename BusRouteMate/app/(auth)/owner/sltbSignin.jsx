@@ -1,64 +1,75 @@
-import React,{useState} from 'react'
-import { StyleSheet, Text, View } from 'react-native'
-import { TextInput,IconButton,Button } from 'react-native-paper'
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { TextInput, Button } from 'react-native-paper';
 
 const SLTBSignin = () => {
-    const[password,setPassword] = useState('');
-    const[showPassword,setShowPassword] = useState(false);
+    const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+
     const handleSignin = () => {
         console.log(password);
     };
-  return (
-    <View style={styles.container}>
-        <View style={styles.subHeadingContainer}>
-            <Text style={styles.subHeading}>SLTB Sign in</Text>
-        </View>
-        <View style={styles.inputContainer}>
-            <TextInput 
-            style={styles.input}
-            label="Password"
-            value={password}
-            onChangeText={text => setPassword(text)}
-            mode='outlined'
-            secureTextEntry={!showPassword}//if showPassword is false, secureTextEntry is true
-            right={
-                <TextInput.Icon 
-                    icon={showPassword ? 'eye-off' : 'eye'} 
-                    onPress={() => setShowPassword(!showPassword)} 
-                />
-            }
-            
-            />
 
-            <Button mode='contained' style={styles.signInButton} onPress={handleSignin}>Sign In</Button>
-        </View>
-    </View>
-  )
-}
+    return (
+        <SafeAreaView style={styles.container}>
+            <KeyboardAvoidingView 
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+                style={styles.container}
+            >
+                <View style={styles.centeredContent}>
+                    <Text style={styles.subHeading}>SLTB Sign in</Text>
 
-export default SLTBSignin
+                    <TextInput 
+                        style={styles.input}
+                        label="Password"
+                        value={password}
+                        onChangeText={text => setPassword(text)}
+                        mode="outlined"
+                        secureTextEntry={!showPassword}
+                        right={
+                            <TextInput.Icon 
+                                icon={showPassword ? 'eye-off' : 'eye'} 
+                                onPress={() => setShowPassword(!showPassword)} 
+                            />
+                        }
+                    />
+
+                    <Button 
+                        mode="contained" 
+                        style={styles.signInButton} 
+                        onPress={handleSignin}
+                    >
+                        Sign In
+                    </Button>
+                </View>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
+    );
+};
+
+export default SLTBSignin;
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: '3%',
     },
-    subHeadingContainer: {
-        flex:0.2,// Pushes the subheading towards the top
-        justifyContent: 'flex-end',// Aligns subheading to the bottom of this container
+    centeredContent: {
+        flex: 1,
+        justifyContent: 'center', // Centers the content vertically on the screen
+        paddingHorizontal: '5%',
     },
     subHeading: {
-        fontSize: 20, // Fnt size of the subheading
+        fontSize: 24,
+        fontWeight: 'bold',
         textAlign: 'center',
-      },
-    inputContainer: {
-        flex: 1,// Center the input and button
-        justifyContent: 'center',// Vertically centers the content
+        marginBottom: 20,
+    },
+    input: {
+        marginVertical: '2%',
     },
     signInButton: {
         marginTop: '10%',
-        paddingVertical: '1%',
         width: '50%',
         alignSelf: 'center',
-      },
+    },
 });
