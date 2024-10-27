@@ -10,17 +10,17 @@ const UserCategories = () =>  {
       <Text style={styles.heading}>Welcome to Bus Route Mate</Text>
       <Text style={styles.subheading}>Select User Category</Text>
       {/* Full-width Card 1 */}
-      <Card style={styles.card} onPress={() => router.push('/(auth)/owner/organizationSelection')}>
+      <Card style={styles.card} onPress={() => console.log("Driver Card  Pressed")}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Driver" subtitle="Sign in/Sign up" />
       </Card>
 
       {/* Full-width Card 2 */}
-      <Card style={styles.card} onPress={() => console.log("Card 2 Pressed")}>
+      <Card style={styles.card} onPress={() => router.push('/(auth)/owner/organizationSelection')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Owner" subtitle="Sign in/Sign up" />
       </Card>
 
       {/* Full-width Card 3 */}
-      <Card style={styles.card} onPress={() => console.log("Card 3 Pressed")}>
+      <Card style={styles.card} onPress={() => router.push('/(auth)/passenger/passengerSignIn')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Passenger" subtitle="Sign in/Sign up" />
       </Card>
 
@@ -45,7 +45,9 @@ const styles = StyleSheet.create({
     textAlign: 'center', // Centers the heading
   },
   subheading: {
-    fontSize: 20, // Adjust the size as needed
+    fontSize: 24, // Adjust the size as needed
+    fontWeight: 'bold', // Bold subheading
+    textAlign: 'center', // Centers the subheading
     marginBottom: '10%', // Space between subheading and cards
   },
   card: {

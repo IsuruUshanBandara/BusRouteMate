@@ -39,7 +39,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',// Aligns subheading to the bottom of this container
   },
   subheading: {
-    fontSize: 20, // Fnt size of the subheading
+    fontSize: 24, // Fnt size of the subheading
+    fontWeight: 'bold', // Bold subheading
     // marginBottom: '16%', // Space between subheading and cards
     textAlign: 'center',
   },

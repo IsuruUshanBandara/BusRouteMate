@@ -7,7 +7,7 @@ const Authlayout = () => {
 const router = useRouter();
   return (
     <View style={Styles.container}>
-      <Appbar.Header>
+      <Appbar.Header style={Styles.appBarHeader}>
         <Appbar.BackAction onPress={() => router.back()} />
         <Appbar.Content style={Styles.appbartitle} title="Bus Route Mate" />
       </Appbar.Header>
@@ -26,4 +26,5 @@ const Styles = StyleSheet.create({
   appbartitle: {
     alignItems: 'center'
   },
+  
 })
