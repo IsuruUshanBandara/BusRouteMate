@@ -10,7 +10,7 @@ const UserCategories = () =>  {
       <Text style={styles.heading}>Welcome to Bus Route Mate</Text>
       <Text style={styles.subheading}>Select User Category</Text>
       {/* Full-width Card 1 */}
-      <Card style={styles.card} onPress={() => console.log("Driver Card  Pressed")}>
+      <Card style={styles.card} onPress={() => router.push('/(auth)/driver/driverSignIn')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Driver" subtitle="Sign in/Sign up" />
       </Card>
 
