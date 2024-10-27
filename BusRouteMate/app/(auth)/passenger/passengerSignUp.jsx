@@ -7,12 +7,12 @@ const PassengerSignUp = () => {
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
-    const [nationalIdentityNum, setNationalIdentityNum] = useState('');
+    const [securityQuestionAns, setSecurityQuestionAns] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
-    const [securityQuestion, setSecurityQuestion] = useState('Select a security question');
+    const [securityQuestion, setSecurityQuestion] = useState('');
     const [menuVisible, setMenuVisible] = useState(false);
 
     const handleSignUp = () => {
@@ -24,8 +24,14 @@ const PassengerSignUp = () => {
         "What is your mother's maiden name?",
         "What was the name of your first pet?",
         "What is the name of your hometown?",
-        "What was your first car model?"
+        "What was your first car model?",
+        "What is your favorite book?",
+        "What is your favorite color?"
     ];
+
+    const toggleMenuVisibility = () => {
+        setMenuVisible(!menuVisible);
+    };
 
     return (
         <Provider>
@@ -92,34 +98,44 @@ const PassengerSignUp = () => {
                                 visible={menuVisible}
                                 onDismiss={() => setMenuVisible(false)}
                                 anchor={
-                                    <Pressable onPress={() => setMenuVisible(true)}>
+                                    <Pressable onPress={toggleMenuVisibility} style={styles.input}>
                                         <TextInput
-                                            style={styles.input}
                                             label="Security Question"
-                                            value={securityQuestion}
+                                            value={securityQuestion || ""}
+                                            placeholder={!securityQuestion ? "Select a security question" : ""}
                                             mode="outlined"
-                                            editable={false} // Prevents keyboard from opening
+                                            editable={false}
+                                            right={
+                                                <TextInput.Icon 
+                                                    icon={menuVisible ? 'chevron-up' : 'chevron-down'} 
+                                                    onPress={toggleMenuVisibility} 
+                                                />
+                                            }
                                         />
                                     </Pressable>
                                 }
+                                contentStyle={[styles.menuContent, { width: '100%' }]} // Sets menu width to TextInput width
                             >
-                                {securityQuestions.map((question, index) => (
-                                    <Menu.Item
-                                        key={index}
-                                        onPress={() => {
-                                            setSecurityQuestion(question);
-                                            setMenuVisible(false);
-                                        }}
-                                        title={question}
-                                    />
-                                ))}
+                                <ScrollView style={{ maxHeight: 150 }}>
+                                    {securityQuestions.map((question, index) => (
+                                        <Menu.Item
+                                            key={index}
+                                            onPress={() => {
+                                                setSecurityQuestion(question);
+                                                setMenuVisible(false);
+                                            }}
+                                            title={question}
+                                            style={styles.menuItem}
+                                        />
+                                    ))}
+                                </ScrollView>
                             </Menu>
 
                             <TextInput 
                                 style={styles.input}
                                 label="Answer to the Selected Security Question"
-                                value={nationalIdentityNum}
-                                onChangeText={text => setNationalIdentityNum(text)}
+                                value={securityQuestionAns}
+                                onChangeText={text => setSecurityQuestionAns(text)}
                                 mode="outlined"
                             />
 
@@ -165,6 +181,15 @@ const styles = StyleSheet.create({
     },
     input: {
         marginVertical: 10,
+        width: '100%',
+    },
+    menuContent: {
+        maxwidth: '100%',
+        paddingHorizontal: 10,
+    },
+    menuItem: {
+        paddingHorizontal: 10,
+        justifyContent: 'center',
     },
     signUpButton: {
         marginTop: 20,

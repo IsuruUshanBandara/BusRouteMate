@@ -3,15 +3,15 @@ import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platfor
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 
-const PassengerSignIn = () => {
+const DriverSignIn = () => {
     const router = useRouter();
-    const [passengerEmail, setPassengerEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
+    const [licensePlateNumber, setLicensePlateNumber] = useState('');
+    const [driverPassword, setdriverPassword] = useState('');
+    const [showDriverPassword, setShowDriverPassword] = useState(false);
 
     const handleSignIn = () => {
-        console.log('Password',password);
-        console.log('Email',passengerEmail);
+        console.log(driverPassword);
+        console.log(licensePlateNumber);
     };
 
     return (
@@ -26,32 +26,28 @@ const PassengerSignIn = () => {
 
                         <TextInput
                             style={styles.input}
-                            label="Email"
-                            value={passengerEmail}
-                            onChangeText={text => setPassengerEmail(text)}
+                            label="License Plate Number"
+                            value={licensePlateNumber}
+                            onChangeText={text => setLicensePlateNumber(text)}
                             mode='outlined'
-                            
+                            keyboardType='phone-pad'
                         />
 
                         <TextInput
                             style={styles.input}
                             label="Password"
-                            value={password}
-                            onChangeText={text => setPassword(text)}
+                            value={driverPassword}
+                            onChangeText={text => setdriverPassword(text)}
                             mode='outlined'
-                            secureTextEntry={!showPassword}
+                            secureTextEntry={!showDriverPassword}
                             right={
                                 <TextInput.Icon
-                                    icon={showPassword ? 'eye-off' : 'eye'}
-                                    onPress={() => setShowPassword(!showPassword)}
+                                    icon={showDriverPassword ? 'eye-off' : 'eye'}
+                                    onPress={() => setShowDriverPassword(!showDriverPassword)}
                                 />
                             }
                         />
-                        <TouchableOpacity onPress={() => router.push('passenger/passengerForgotPassword')}>
-                            <Text style={styles.forgotPassword}>Forgot Password?</Text>
-                        </TouchableOpacity>
                         <Button mode='contained' style={styles.signInButton} onPress={handleSignIn}>Sign In</Button>
-                        <Button mode='contained' style={styles.createAccountButton} onPress={() => router.push('passenger/passengerSignUp')}>Create Account</Button>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -59,7 +55,7 @@ const PassengerSignIn = () => {
     );
 };
 
-export default PassengerSignIn;
+export default DriverSignIn;
 
 const styles = StyleSheet.create({
     container: {
