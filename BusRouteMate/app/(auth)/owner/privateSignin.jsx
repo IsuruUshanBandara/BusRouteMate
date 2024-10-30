@@ -10,6 +10,7 @@ const PrivateBusSignIn = () => {
     const [showPassword, setShowPassword] = useState(false);
 
     const handleSignIn = () => {
+        router.push('../../screens/owner/ownerHome');
         console.log(password);
         console.log(phoneNumber);
     };
