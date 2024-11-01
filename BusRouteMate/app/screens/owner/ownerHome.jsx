@@ -1,15 +1,16 @@
 import { StyleSheet,View } from 'react-native';
 import * as React from 'react';
 import { Card, Text } from 'react-native-paper';
-import{useRouter} from 'expo-router';
+import{router, useRouter} from 'expo-router';
 
 const OwnerHome = () => {
+  const route = useRouter();
   return (
     <View style={styles.container}>
         <Text style={styles.heading}>Welcome to Bus Route Mate</Text>
         {/* <Text style={styles.subheading}>Select User Category</Text> */}
         {/* Full-width Card 1 */}
-        <Card style={styles.card} onPress={() => console.log('add/register buses and driver card ')}>
+        <Card style={styles.card} onPress={() => router.push('screens/owner/addRegisterDriverBus')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Add/Register Buses and Driver"/>
         </Card>
 
