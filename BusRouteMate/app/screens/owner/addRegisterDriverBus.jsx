@@ -6,6 +6,7 @@ import {
   Dimensions,
   Text,
   TouchableOpacity,
+  SafeAreaView,
 } from "react-native";
 import {
   GooglePlacesAutocomplete,
@@ -14,43 +15,47 @@ import Constants from "expo-constants";
 import { useRef, useState } from "react";
 import MapViewDirections from "react-native-maps-directions";
 
+const GOOGLE_API_KEY = "AIzaSyDnrq4UQIcaMGaHVhRKpoOXGbAxuC5Cgqg";
+
 const { width, height } = Dimensions.get("window");
 const ASPECT_RATIO = width / height;
 const LATITUDE_DELTA = 0.02;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 const INITIAL_POSITION = {
-  latitude: 40.76711,
-  longitude: -73.979704,
+  latitude: 7.8731,
+  longitude: 80.7718,
   latitudeDelta: LATITUDE_DELTA,
   longitudeDelta: LONGITUDE_DELTA,
 };
 
-function InputAutocomplete({ label, placeholder, onPlaceSelected }) {
+function InputAutocomplete({ placeholder, onPlaceSelected, onFocus }) {
   return (
-    <>
-      <Text>{label}</Text>
-      <GooglePlacesAutocomplete
-        styles={{ textInput: styles.input }}
-        placeholder={placeholder || ""}
-        fetchDetails
-        onPress={(data, details = null) => {
-          onPlaceSelected(details);
-        }}
-        query={{
-          key: "AIzaSyDnrq4UQIcaMGaHVhRKpoOXGbAxuC5Cgqg",
-          language: "en", // Change to your preferred language
-        }}
-      />
-    </>
+    <GooglePlacesAutocomplete
+      styles={{ textInput: styles.input }}
+      placeholder={placeholder || ""}
+      fetchDetails
+      onPress={(data, details = null) => {
+        onPlaceSelected(details);
+      }}
+      onFocus={onFocus}
+      query={{
+        key: GOOGLE_API_KEY,
+        language: "en", // Change to your preferred language
+      }}
+    />
   );
 }
 
 export default function App() {
   const [origin, setOrigin] = useState(null);
   const [destination, setDestination] = useState(null);
+  const [passing1, setPassing1] = useState(null);
+  const [passing2, setPassing2] = useState(null);
+  const [passing3, setPassing3] = useState(null);
   const [showDirections, setShowDirections] = useState(false);
   const [distance, setDistance] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [showOtherInputs, setShowOtherInputs] = useState(false); // State to control other autocomplete visibility
   const mapRef = useRef(null);
 
   const moveTo = async (position) => {
@@ -73,14 +78,24 @@ export default function App() {
     if (args) {
       setDistance(args.distance);
       setDuration(args.duration);
+      console.log("Route coordinates:", args.coordinates);
     }
   };
 
-  const traceRoute = () => {
+  const checkRoute = () => {
     if (origin && destination) {
       setShowDirections(true);
-      mapRef.current.fitToCoordinates([origin, destination], { edgePadding });
+      mapRef.current.fitToCoordinates(
+        [origin, passing1, passing2, passing3, destination].filter(Boolean), // Only include defined coordinates
+        { edgePadding }
+      );
+      setShowOtherInputs(false); // Hide other inputs after checking the route
     }
+  };
+
+  const saveRoute = () => {
+    // Here you can implement the logic to save the route
+    console.log("Route saved:", { origin, destination, passing1, passing2, passing3 });
   };
 
   const onPlaceSelected = (details, flag) => {
@@ -90,14 +105,21 @@ export default function App() {
     };
     if (flag === "origin") {
       setOrigin(position);
-    } else {
+      setShowOtherInputs(true); // Show other inputs when origin is selected
+    } else if (flag === "destination") {
       setDestination(position);
+    } else if (flag === "passing1") {
+      setPassing1(position);
+    } else if (flag === "passing2") {
+      setPassing2(position);
+    } else if (flag === "passing3") {
+      setPassing3(position);
     }
     moveTo(position);
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -106,11 +128,15 @@ export default function App() {
       >
         {origin && <Marker coordinate={origin} />}
         {destination && <Marker coordinate={destination} />}
+        {passing1 && <Marker coordinate={passing1} pinColor="orange" />}
+        {passing2 && <Marker coordinate={passing2} pinColor="orange" />}
+        {passing3 && <Marker coordinate={passing3} pinColor="orange" />}
         {showDirections && origin && destination && (
           <MapViewDirections
             origin={origin}
             destination={destination}
-            apikey={"AIzaSyDnrq4UQIcaMGaHVhRKpoOXGbAxuC5Cgqg"} 
+            waypoints={[passing1, passing2, passing3].filter(Boolean)} // Only include defined waypoints
+            apikey={GOOGLE_API_KEY}
             strokeColor="#6644ff"
             strokeWidth={4}
             onReady={traceRouteOnReady}
@@ -119,16 +145,38 @@ export default function App() {
       </MapView>
       <View style={styles.searchContainer}>
         <InputAutocomplete
-          label="Origin"
+          placeholder="Origin Click and Select to Show Other Inputs"
           onPlaceSelected={(details) => onPlaceSelected(details, "origin")}
+          onFocus={() => setShowOtherInputs(true)} // Show other inputs when origin is focused
         />
-        <InputAutocomplete
-          label="Destination"
-          onPlaceSelected={(details) => onPlaceSelected(details, "destination")}
-        />
-        <TouchableOpacity style={styles.button} onPress={traceRoute}>
-          <Text style={styles.buttonText}>Trace Route</Text>
-        </TouchableOpacity>
+        {showOtherInputs && (
+          <>
+            <InputAutocomplete
+              placeholder="Passing 1 (Optional)"
+              onPlaceSelected={(details) => onPlaceSelected(details, "passing1")}
+            />
+            <InputAutocomplete
+              placeholder="Passing 2 (Optional)"
+              onPlaceSelected={(details) => onPlaceSelected(details, "passing2")}
+            />
+            <InputAutocomplete
+              placeholder="Passing 3 (Optional)"
+              onPlaceSelected={(details) => onPlaceSelected(details, "passing3")}
+            />
+            <InputAutocomplete
+              placeholder="Destination"
+              onPlaceSelected={(details) => onPlaceSelected(details, "destination")}
+            />
+          </>
+        )}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.button} onPress={checkRoute}>
+            <Text style={styles.buttonText}>Check Route</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={saveRoute}>
+            <Text style={styles.buttonText}>Save Route</Text>
+          </TouchableOpacity>
+        </View>
         {distance && duration ? (
           <View>
             <Text>Distance: {distance.toFixed(2)} km</Text>
@@ -136,20 +184,19 @@ export default function App() {
           </View>
         ) : null}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
   },
   map: {
-    width: Dimensions.get("window").width,
-    height: Dimensions.get("window").height,
+    width: '100%',
+    height: '100%',
   },
   searchContainer: {
     position: "absolute",
@@ -171,10 +218,16 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginBottom: 10,
   },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
   button: {
     backgroundColor: "#bbb",
     paddingVertical: 12,
-    marginTop: 16,
+    flex: 1,
+    marginHorizontal: 4,
     borderRadius: 4,
   },
   buttonText: {
