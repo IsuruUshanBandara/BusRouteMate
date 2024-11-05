@@ -11,7 +11,7 @@ const PassengerSignUp = () => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [securityQuestion, setSecurityQuestion] = useState('');
     const [menuVisible, setMenuVisible] = useState(false);
 
@@ -84,11 +84,11 @@ const PassengerSignUp = () => {
                                 value={confirmPassword}
                                 onChangeText={text => setConfirmPassword(text)}
                                 mode="outlined"
-                                secureTextEntry={!showPassword}
+                                secureTextEntry={!showConfirmPassword}
                                 right={
                                     <TextInput.Icon 
-                                        icon={showPassword ? 'eye-off' : 'eye'} 
-                                        onPress={() => setShowPassword(!showPassword)} 
+                                        icon={showConfirmPassword ? 'eye-off' : 'eye'} 
+                                        onPress={() => setShowConfirmPassword(!showConfirmPassword)} 
                                     />
                                 }
                             />

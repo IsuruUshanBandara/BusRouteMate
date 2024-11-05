@@ -14,8 +14,9 @@ import {
 import Constants from "expo-constants";
 import { useRef, useState } from "react";
 import MapViewDirections from "react-native-maps-directions";
+import { router, useLocalSearchParams } from 'expo-router';
 
-const GOOGLE_API_KEY = "AIzaSyDnrq4UQIcaMGaHVhRKpoOXGbAxuC5Cgqg";
+const GOOGLE_API_KEY = "YOUR_GOOGLE_API_KEY"; // Replace with your actual API key
 
 const { width, height } = Dimensions.get("window");
 const ASPECT_RATIO = width / height;
@@ -40,13 +41,21 @@ function InputAutocomplete({ placeholder, onPlaceSelected, onFocus }) {
       onFocus={onFocus}
       query={{
         key: GOOGLE_API_KEY,
-        language: "en", // Change to your preferred language
+        language: "en",
       }}
     />
   );
 }
 
 const AddRegisterDriverBusScreen2 = () => {
+  const { busData } = useLocalSearchParams(); // Get routes passed from previous screen
+  const parasedRoutes= busData ? JSON.parse(busData).routes : []; // Parse the routes if available
+  const [routeIndex, setRouteIndex] = useState(0);
+  const currentRoute = parasedRoutes.length > 0 ? parasedRoutes[routeIndex] : {}; // Get the current route if available
+ // Log parsedRoutes and currentRoute for debugging
+  console.log("Parsed Routes:", parasedRoutes);
+  console.log("Current Route:", currentRoute); 
+  const plateNum = busData ? JSON.parse(busData).licencePlateNum : ''; // Get the license plate number
   const [origin, setOrigin] = useState(null);
   const [destination, setDestination] = useState(null);
   const [passing1, setPassing1] = useState(null);
@@ -55,7 +64,7 @@ const AddRegisterDriverBusScreen2 = () => {
   const [showDirections, setShowDirections] = useState(false);
   const [distance, setDistance] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [showOtherInputs, setShowOtherInputs] = useState(false); // State to control other autocomplete visibility
+  const [showOtherInputs, setShowOtherInputs] = useState(false);
   const mapRef = useRef(null);
 
   const moveTo = async (position) => {
@@ -78,7 +87,6 @@ const AddRegisterDriverBusScreen2 = () => {
     if (args) {
       setDistance(args.distance);
       setDuration(args.duration);
-      console.log("Route coordinates:", args.coordinates);
     }
   };
 
@@ -86,16 +94,37 @@ const AddRegisterDriverBusScreen2 = () => {
     if (origin && destination) {
       setShowDirections(true);
       mapRef.current.fitToCoordinates(
-        [origin, passing1, passing2, passing3, destination].filter(Boolean), // Only include defined coordinates
+        [origin, passing1, passing2, passing3, destination].filter(Boolean),
         { edgePadding }
       );
-      setShowOtherInputs(false); // Hide other inputs after checking the route
+      setShowOtherInputs(false);
     }
   };
 
   const saveRoute = () => {
-    // Here you can implement the logic to save the route
+    // Save coordinates and move to the next route if available
     console.log("Route saved:", { origin, destination, passing1, passing2, passing3 });
+    if (routeIndex < parasedRoutes.length - 1) {
+      setRouteIndex(routeIndex + 1);
+      resetCoordinates();
+    } else {
+      console.log("All routes completed.");
+      router.push({
+        pathname:'screens/owner/addRegisterDriverBusScreen3',
+        params: { plateNum:JSON.stringify(plateNum)},
+      });
+    }
+  };
+
+  const resetCoordinates = () => {
+    setOrigin(null);
+    setDestination(null);
+    setPassing1(null);
+    setPassing2(null);
+    setPassing3(null);
+    setShowDirections(false);
+    setDistance(0);
+    setDuration(0);
   };
 
   const onPlaceSelected = (details, flag) => {
@@ -105,7 +134,7 @@ const AddRegisterDriverBusScreen2 = () => {
     };
     if (flag === "origin") {
       setOrigin(position);
-      setShowOtherInputs(true); // Show other inputs when origin is selected
+      setShowOtherInputs(true);
     } else if (flag === "destination") {
       setDestination(position);
     } else if (flag === "passing1") {
@@ -120,6 +149,9 @@ const AddRegisterDriverBusScreen2 = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Text style={styles.headerText}>
+        Enter the origin and destination for Route number {currentRoute.routeNum} - {currentRoute.busRoute}
+      </Text>
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -135,7 +167,7 @@ const AddRegisterDriverBusScreen2 = () => {
           <MapViewDirections
             origin={origin}
             destination={destination}
-            waypoints={[passing1, passing2, passing3].filter(Boolean)} // Only include defined waypoints
+            waypoints={[passing1, passing2, passing3].filter(Boolean)}
             apikey={GOOGLE_API_KEY}
             strokeColor="#6644ff"
             strokeWidth={4}
@@ -145,9 +177,9 @@ const AddRegisterDriverBusScreen2 = () => {
       </MapView>
       <View style={styles.searchContainer}>
         <InputAutocomplete
-          placeholder="Origin Click and Select to Show Other Inputs"
+          placeholder="Origin (Click and Select to Show Other Inputs)"
           onPlaceSelected={(details) => onPlaceSelected(details, "origin")}
-          onFocus={() => setShowOtherInputs(true)} // Show other inputs when origin is focused
+          onFocus={() => setShowOtherInputs(true)}
         />
         {showOtherInputs && (
           <>
@@ -187,6 +219,7 @@ const AddRegisterDriverBusScreen2 = () => {
     </SafeAreaView>
   );
 }
+
 export default AddRegisterDriverBusScreen2;
 
 const styles = StyleSheet.create({
@@ -194,6 +227,13 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  headerText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginTop: 10,
+    marginBottom: 10,
+    textAlign: "center",
   },
   map: {
     width: '100%',
@@ -209,29 +249,30 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
     padding: 8,
-    borderRadius: 8,
-    top: Constants.statusBarHeight,
-  },
-  input: {
-    borderColor: "#888",
-    borderWidth: 1,
-    padding: 10,
     borderRadius: 5,
-    marginBottom: 10,
+    bottom: 20,
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginVertical: 10,
   },
   button: {
-    backgroundColor: "#bbb",
-    paddingVertical: 12,
-    flex: 1,
-    marginHorizontal: 4,
-    borderRadius: 4,
+    backgroundColor: "#007bff",
+    padding: 10,
+    borderRadius: 5,
+    width: 100,
   },
   buttonText: {
+    color: "#fff",
     textAlign: "center",
+  },
+  input: {
+    height: 50,
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingLeft: 10,
+    marginBottom: 10,
   },
 });

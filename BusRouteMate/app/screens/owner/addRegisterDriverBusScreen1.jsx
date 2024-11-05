@@ -23,12 +23,12 @@ const AddRegisterDriverBusScreen1 = () => {
     // Handler to save details and navigate to the next screen with the data
     const handleSubmit = () => {
         const busData = {
-            licencePlateNum,
-            routes
+            routes,
+            licencePlateNum
         };
         console.log(busData);
         router.push({
-            pathname: '/NextScreen', // Adjust this path to the actual path of your next screen
+            pathname: 'screens/owner/addRegisterDriverBusScreen2', // Adjust this path to the actual path of your next screen
             params: { busData: JSON.stringify(busData) },
         });
     };
