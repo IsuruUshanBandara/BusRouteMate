@@ -11,6 +11,7 @@ const PrivateBusSignUp = () => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const handleSignUp = () => {
         console.log(password);
@@ -75,11 +76,11 @@ const PrivateBusSignUp = () => {
                             value={confirmPassword}
                             onChangeText={text => setConfirmPassword(text)}
                             mode="outlined"
-                            secureTextEntry={!showPassword}
+                            secureTextEntry={!showConfirmPassword}
                             right={
                                 <TextInput.Icon 
-                                    icon={showPassword ? 'eye-off' : 'eye'} 
-                                    onPress={() => setShowPassword(!showPassword)} 
+                                    icon={showConfirmPassword ? 'eye-off' : 'eye'} 
+                                    onPress={() => setShowConfirmPassword(!showConfirmPassword)} 
                                 />
                             }
                         />
