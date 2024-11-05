@@ -46,7 +46,7 @@ function InputAutocomplete({ placeholder, onPlaceSelected, onFocus }) {
   );
 }
 
-export default function App() {
+const AddRegisterDriverBusScreen2 = () => {
   const [origin, setOrigin] = useState(null);
   const [destination, setDestination] = useState(null);
   const [passing1, setPassing1] = useState(null);
@@ -187,6 +187,7 @@ export default function App() {
     </SafeAreaView>
   );
 }
+export default AddRegisterDriverBusScreen2;
 
 const styles = StyleSheet.create({
   container: {
