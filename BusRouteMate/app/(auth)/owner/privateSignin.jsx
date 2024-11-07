@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-
+import { useTranslation } from 'react-i18next';
 const PrivateBusSignIn = () => {
     const router = useRouter();
     const [phoneNumber, setPhoneNumber] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const { t } = useTranslation();
 
     const handleSignIn = () => {
         router.push('../../screens/owner/ownerHome');
@@ -23,7 +24,7 @@ const PrivateBusSignIn = () => {
             >
                 <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
                     <View style={styles.centeredContent}>
-                        <Text style={styles.subHeading}>Sign In</Text>
+                        <Text style={styles.subHeading}>{t('signIn')}</Text>
 
                         <TextInput
                             style={styles.input}

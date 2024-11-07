@@ -1,17 +1,36 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet,View } from 'react-native';
 import * as React from 'react';
-import { Card, Text } from 'react-native-paper';
+import { Card, Text,Button } from 'react-native-paper';
 import{useRouter} from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import i18n from './i18n';
 const UserCategories = () =>  {
   const router = useRouter();
+  const { t } = useTranslation();
+
+ // Language switch function
+ const toggleLanguage = () => {
+  const newLang = i18n.language === 'en' ? 'si' : 'en';
+  i18n.changeLanguage(newLang);
+};
+
   return (
     <View style={styles.container}>
+       <View style={styles.languageToggleContainer}>
+        <Button
+          mode="text"
+          onPress={toggleLanguage}
+          labelStyle={{ fontSize: 16 }}
+        >
+          {i18n.language === 'en' ? 'සිංහල' : 'English'}
+        </Button>
+      </View>
       <Text style={styles.heading}>Welcome to Bus Route Mate</Text>
-      <Text style={styles.subheading}>Select User Category</Text>
+      <Text style={styles.subheading}>{t('Select_User_Category')}</Text>
       {/* Full-width Card 1 */}
       <Card style={styles.card} onPress={() => router.push('/(auth)/driver/driverSignIn')}>
-        <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Driver" subtitle="Sign in/Sign up" />
+        <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title={t('driver')} subtitle="Sign in/Sign up" />
       </Card>
 
       {/* Full-width Card 2 */}
@@ -37,6 +56,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: '3%', // Optional: adds padding around the container
+  },
+  languageToggleContainer: {
+    position: 'absolute',
+    top: 30,
+    right: 10,
+    zIndex: 1,
   },
   heading: {
     fontSize: 30, // Adjust the size as needed
