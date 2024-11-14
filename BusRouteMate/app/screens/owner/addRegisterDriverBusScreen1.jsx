@@ -2,11 +2,15 @@ import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView,
 import React, { useState } from 'react';
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
+import {db} from'../../db/firebaseConfig';
+import { collection,doc,addDoc } from 'firebase/firestore';
 
 const AddRegisterDriverBusScreen1 = () => {
     const router = useRouter();
     const [licencePlateNum, setLicencePlateNum] = useState('');
     const [routes, setRoutes] = useState([{ routeNum: '', busRoute: '' }]); // Array to store route number and bus route pairs
+    
+//    const db = firebase.firestore();
 
     // Handler to add a new route input
     const addRoute = () => {
@@ -21,17 +25,43 @@ const AddRegisterDriverBusScreen1 = () => {
     };
 
     // Handler to save details and navigate to the next screen with the data
-    const handleSubmit = () => {
-        const busData = {
-            routes,
-            licencePlateNum
-        };
-        console.log(busData);
-        router.push({
-            pathname: 'screens/owner/addRegisterDriverBusScreen2', // Adjust this path to the actual path of your next screen
-            params: { busData: JSON.stringify(busData) },
-        });
+    const handleSubmit = async () => {
+        try{
+        // saveBusData(licencePlateNum, routes);
+        // const busData = {
+        //     routes,
+        //     licencePlateNum
+        // };
+        // console.log(busData);
+        // router.push({
+        //     pathname: 'screens/owner/addRegisterDriverBusScreen2', // Adjust this path to the actual path of your next screen
+        //     params: { busData: JSON.stringify(busData) },
+        // });
+         // Reference to the specific bus's route collection in Firestore
+        const busRef = doc(db, `privateOwners/0712663115/buses/${licencePlateNum}`);
+        const routesCollectionRef = collection(busRef, 'route');
+
+        // Save each route to Firestore with an auto-generated document ID
+        for (const route of routes) {
+            await addDoc(routesCollectionRef, {
+                routeNum: route.routeNum,
+                busRoute: route.busRoute,
+            });
+        }
+
+        console.log("Data saved successfully to Firestore and locally:", busData);
+
+        // Navigate to the next screen and pass the bus data as a parameter
+        // router.push({
+        //     pathname: 'screens/owner/addRegisterDriverBusScreen2', // Adjust this path as needed
+        //     params: { busData: JSON.stringify(busData) },
+        // });
+        } catch (error) {
+         console.error("Error saving data:", error);
+        }
+
     };
+
 
     return (
         <SafeAreaView style={styles.container}>

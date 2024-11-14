@@ -29,6 +29,8 @@
     },
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "newArchEnabled": true,
+    "scheme": "busroutemate"
   }
 }
