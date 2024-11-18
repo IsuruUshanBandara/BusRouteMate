@@ -2,9 +2,28 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet,View } from 'react-native';
 import * as React from 'react';
 import { Card, Text } from 'react-native-paper';
-import { useRouter } from 'expo-router';
+import { useRouter,useLocalSearchParams } from 'expo-router';
 const OrganizationCategories = () =>  {
   const router = useRouter();
+  const { category } = useLocalSearchParams();
+   // Conditional navigation based on the category
+   const handleCardPress = (orgType) => {
+    if (category === 'driver') {
+      // Navigate to driver-specific screens and pass category
+      router.push({
+        pathname: `driver/driverSignIn`,
+        params: { category }, // Pass the category
+      });
+    } else if (category === 'owner') {
+      // Navigate to owner-specific screens and pass category
+      router.push({
+        pathname: `owner/${orgType}SignIn`,
+        params: { category }, // Pass the category
+      });
+    } else {
+      console.error('Invalid category'); // Handle unexpected cases
+    }
+   };
   return (
     <View style={styles.container}>
       <View style={styles.subHeadingContainer}>
@@ -12,18 +31,18 @@ const OrganizationCategories = () =>  {
       </View>
       <View style={styles.cardsContainer}>
       {/* SLTB bus sing in card */}
-      <Card style={styles.card} onPress={() => router.push('owner/sltbSignIn')}>
+      <Card style={styles.card} onPress={() => handleCardPress('sltb')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="SLTB Organization" subtitle="Sign in/Sign up" />
       </Card>
 
       {/* Private bus sign in card */}
-      <Card style={styles.card} onPress={() => router.push('owner/privateSignIn')}>
+      <Card style={styles.card} onPress={() => handleCardPress('private')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Private Organization" subtitle="Sign in/Sign up" />
       </Card>
       </View>
     </View>
   );
-}
+};
 export default OrganizationCategories;
 
 const styles = StyleSheet.create({

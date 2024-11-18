@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
-import { useRouter } from 'expo-router';
+import { useRouter,useLocalSearchParams } from 'expo-router';
 
 const DriverSignIn = () => {
     const router = useRouter();
+    const { category } = useLocalSearchParams();
     const [licensePlateNumber, setLicensePlateNumber] = useState('');
     const [driverPassword, setdriverPassword] = useState('');
     const [showDriverPassword, setShowDriverPassword] = useState(false);
@@ -12,6 +13,7 @@ const DriverSignIn = () => {
     const handleSignIn = () => {
         console.log(driverPassword);
         console.log(licensePlateNumber);
+        router.push('../../screens/driver/driverRideStartCancelScreen');
     };
 
     return (
