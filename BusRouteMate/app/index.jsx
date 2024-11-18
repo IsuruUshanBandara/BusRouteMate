@@ -1,4 +1,3 @@
-import { StatusBar } from 'expo-status-bar';
 import { StyleSheet,View } from 'react-native';
 import * as React from 'react';
 import { Card, Text,Button } from 'react-native-paper';
@@ -14,9 +13,13 @@ const UserCategories = () =>  {
   const newLang = i18n.language === 'en' ? 'si' : 'en';
   i18n.changeLanguage(newLang);
 };
-
+const handleNavigation = (category, path) => {
+  router.push({ pathname: path, params: { category } });
+};
   return (
+    
     <View style={styles.container}>
+      
        <View style={styles.languageToggleContainer}>
         <Button
           mode="text"
@@ -29,21 +32,21 @@ const UserCategories = () =>  {
       <Text style={styles.heading}>Welcome to Bus Route Mate</Text>
       <Text style={styles.subheading}>{t('Select_User_Category')}</Text>
       {/* Full-width Card 1 */}
-      <Card style={styles.card} onPress={() => router.push('/(auth)/driver/driverSignIn')}>
+      <Card style={styles.card} onPress={() => handleNavigation('driver', '/(auth)/organizationSelection')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title={t('driver')} subtitle="Sign in/Sign up" />
       </Card>
 
       {/* Full-width Card 2 */}
-      <Card style={styles.card} onPress={() => router.push('/(auth)/owner/organizationSelection')}>
+      <Card style={styles.card} onPress={() => handleNavigation('owner', '/(auth)/organizationSelection')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Owner" subtitle="Sign in/Sign up" />
       </Card>
 
       {/* Full-width Card 3 */}
-      <Card style={styles.card} onPress={() => router.push('/(auth)/passenger/passengerSignIn')}>
+      <Card style={styles.card} onPress={() => handleNavigation('passenger', '/(auth)/passenger/passengerSignIn')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Passenger" subtitle="Sign in/Sign up" />
       </Card>
 
-      {/* <StatusBar style="auto" /> */}
+      
     </View>
   );
 }

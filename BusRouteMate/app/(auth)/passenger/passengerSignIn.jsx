@@ -12,6 +12,7 @@ const PassengerSignIn = () => {
     const handleSignIn = () => {
         console.log('Password',password);
         console.log('Email',passengerEmail);
+        router.push('../../screens/passenger/passengerHome');
     };
 
     return (
