@@ -15,7 +15,7 @@ const PassengerHome = () => {
         </Card>
 
         {/* Full-width Card 2 */}
-        <Card style={styles.card} onPress={() => console.log('edit/delete buses and drivers')}>
+        <Card style={styles.card} onPress={() => router.push('screens/passenger/driverConductorRatingFeedback')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Driver and Conductor Rating and Feedback"/>
         </Card>
 
