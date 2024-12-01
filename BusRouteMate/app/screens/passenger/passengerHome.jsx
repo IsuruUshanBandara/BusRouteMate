@@ -20,12 +20,12 @@ const PassengerHome = () => {
         </Card>
 
         {/* Full-width Card 3 */}
-        <Card style={styles.card} onPress={() => console.log('track bus')}>
+        <Card style={styles.card} onPress={() => router.push('screens/passenger/busConditionPollutionFeedback')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Bus Condition and Pollution Feedback"/>
         </Card>
 
          {/* Full-width Card 4 */}
-         <Card style={styles.card} onPress={() => console.log('view feedback')}>
+         <Card style={styles.card} onPress={() => router.push('screens/passenger/satisfactionSuggestion')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Customer Satisfaction and suggestions"/>
         </Card>
 

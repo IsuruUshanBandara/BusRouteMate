@@ -17,11 +17,11 @@ const StarRating = ({ maxStars = 5, rating, setRating }) => {
 };
 
 const DriverConductorRatingFeedback = () => {
-  const [rating, setRating] = useState(0);
+  const [driverRating, setDriverRating] = useState(0);
   const [feedback1, setFeedback1] = useState('');
   const [feedback2, setFeedback2] = useState('');
   const [additionalNotes, setAdditionalNotes] = useState('');
-
+  const [conductorRating,setConductorRating] = useState(0);
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* Main Heading */}
@@ -29,17 +29,17 @@ const DriverConductorRatingFeedback = () => {
 
       {/* Message */}
       <Text style={styles.message}>
-        Please provide your feedback to help us improve the service quality.
+        Please provide honest and straightforward feedback. Your feedback and rating will remain anonymous, and your identity will not be disclosed to the owner unless threats are involved.
       </Text>
 
       {/* Subheading */}
-      <Subheading style={styles.subheading}>Rate the Service</Subheading>
+      <Subheading style={styles.subheading}>How was the drivers driving and overall performance</Subheading>
 
       {/* Star Rating Component */}
-      <StarRating rating={rating} setRating={setRating} />
+      <StarRating rating={driverRating} setRating={setDriverRating} />
 
       {/* Subheading */}
-      <Subheading style={styles.subheading}>Your Feedback</Subheading>
+      <Subheading style={styles.subheading}>Reason for the above rating.</Subheading>
 
       {/* Multiline Input Field */}
       <TextInput
@@ -51,9 +51,13 @@ const DriverConductorRatingFeedback = () => {
         numberOfLines={4}
         style={styles.input}
       />
+      <Subheading style={styles.subheading}>How was the conductors overall performance </Subheading>
+
+      {/* Star Rating Component */}
+      <StarRating rating={conductorRating} setRating={setConductorRating} />
 
       {/* Topic */}
-      <Subheading style={styles.topic}>Suggestions for Improvement</Subheading>
+      <Subheading style={styles.subheading}>Reason for the above rating</Subheading>
 
       {/* Multiline Input Field */}
       <TextInput
@@ -67,12 +71,12 @@ const DriverConductorRatingFeedback = () => {
       />
 
       {/* Subheading */}
-      <Subheading style={styles.subheading}>Additional Notes</Subheading>
+      <Subheading style={styles.subheading}>Please enter the Bus Number plates   number (Required)</Subheading>
 
       {/* Normal Input Field */}
       <TextInput
         mode="outlined"
-        label="Add any additional notes"
+        label="KL1055"
         value={additionalNotes}
         onChangeText={(text) => setAdditionalNotes(text)}
         style={styles.input}
@@ -91,7 +95,7 @@ export default DriverConductorRatingFeedback;
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    backgroundColor: '#f5f5f5',
+    // backgroundColor: '#f5f5f5',
   },
   heading: {
     fontSize: 24,
@@ -119,7 +123,7 @@ const styles = StyleSheet.create({
   starContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: '6%',
   },
   star: {
     fontSize: 32,
@@ -132,7 +136,7 @@ const styles = StyleSheet.create({
     color: 'lightgray',
   },
   input: {
-    marginBottom: 16,
+    marginBottom: '6%',
     backgroundColor: '#fff',
   },
   button: {
