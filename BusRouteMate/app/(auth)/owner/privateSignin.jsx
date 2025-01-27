@@ -3,17 +3,31 @@ import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platfor
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { auth } from '../../db/firebaseConfig';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 const PrivateBusSignIn = () => {
     const router = useRouter();
-    const [phoneNumber, setPhoneNumber] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const { t } = useTranslation();
 
     const handleSignIn = () => {
-        router.push('../../screens/owner/ownerHome');
-        console.log(password);
-        console.log(phoneNumber);
+        if (!email ||!password) {
+            console.error('All fields are required.');
+            return;
+        }
+        signInWithEmailAndPassword(auth, email, password)
+            .then((userCredential) => { 
+                const user = userCredential.user;
+                console.log("User signed in successfully:", user);
+                router.push('../../screens/owner/ownerHome');
+            }).catch((error) => {
+                console.error("Error signing user:", error.message);
+            });
+        // router.push('../../screens/owner/ownerHome');
+        // console.log(password);
+        // console.log(email);
     };
 
     return (
@@ -28,11 +42,10 @@ const PrivateBusSignIn = () => {
 
                         <TextInput
                             style={styles.input}
-                            label="Phone Number"
-                            value={phoneNumber}
-                            onChangeText={text => setPhoneNumber(text)}
+                            label="Email"
+                            value={email}
+                            onChangeText={text => setEmail(text)}
                             mode='outlined'
-                            keyboardType='phone-pad'
                         />
 
                         <TextInput
