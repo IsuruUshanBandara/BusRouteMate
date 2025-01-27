@@ -2,6 +2,9 @@ import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView,
 import React, { useState } from 'react';
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
+import {getAuth,createUserWithEmailAndPassword} from 'firebase/auth';  
+import {auth,db} from'../../db/firebaseConfig'; 
+import { doc,setDoc } from 'firebase/firestore';
 
 const PrivateBusSignUp = () => {
     const router = useRouter();
@@ -12,10 +15,31 @@ const PrivateBusSignUp = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    // const auth = getAuth();
 
-    const handleSignUp = () => {
-        console.log(password);
-        console.log(phoneNumber);
+    const handleSignUp = async () => {
+        if (!email || !phoneNumber || !nationalIdentityNum || !password || !confirmPassword) {
+            console.error('All fields are required.');
+            return;
+        }
+        if (password !== confirmPassword) {
+            console.error("Passwords do not match");
+            return;
+        }
+        try{
+        const userCredential = await createUserWithEmailAndPassword(auth,email,password);
+        const user = userCredential.user;
+
+        await setDoc(doc(db,"ownerDetails",email),{
+            email:email,
+            phoneNumber:phoneNumber,
+            nationalId:nationalIdentityNum,
+            createdAt: new Date()
+        });
+        console.log("User created successfully:", user);
+        }catch(error){
+            console.error("Error creating user:", error.message);
+        }
     };
 
     return (
