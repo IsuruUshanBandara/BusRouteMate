@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView,
 import React, { useState } from 'react';
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import {getAuth,createUserWithEmailAndPassword} from 'firebase/auth';  
+import {createUserWithEmailAndPassword} from 'firebase/auth';  
 import {auth,db} from'../../db/firebaseConfig'; 
 import { doc,setDoc } from 'firebase/firestore';
 
@@ -37,6 +37,7 @@ const PrivateBusSignUp = () => {
             createdAt: new Date()
         });
         console.log("User created successfully:", user);
+        router.push('owner/privateSignIn');
         }catch(error){
             console.error("Error creating user:", error.message);
         }
