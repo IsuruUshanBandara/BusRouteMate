@@ -2,20 +2,43 @@ import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView,
 import React, { useState } from 'react';
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
+import {auth,db} from '../../db/firebaseConfig';
+import {doc,getDoc,updateDoc} from 'firebase/firestore';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 const PrivateBusForgotPassword = () => {
     const router = useRouter();
+    const [forgotEmail, setForgotEmail] = useState('');
     const [forgotPwdphoneNumber, setForgotPwdPhoneNumber] = useState('');
     const [forgotPwdNationalIdentityNum, setForgotPwdNationalIdentityNum] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [newConfirmPassword, setNewConfirmPassword] = useState('');
-    const [showNewPassword, setShowNewPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const handleSignIn = () => {
-        console.log(newPassword);
-        console.log(forgotPwdphoneNumber);
-        console.log(forgotPwdNationalIdentityNum);
-        console.log(newConfirmPassword);
+    const handleForgotPassword = async() => {
+        if (!forgotEmail || !forgotPwdphoneNumber || !forgotPwdNationalIdentityNum ) {
+            console.error('All fields are required.');
+            return;
+        }
+        try {
+            // Get user details from Firestore
+            const userDocRef = doc(db, "ownerDetails", forgotEmail);
+            const userDocSnap = await getDoc(userDocRef);
+    
+            if (userDocSnap.exists()) {
+                const userData = userDocSnap.data();
+    
+                // Validate entered phone number and national ID
+                if (userData.phoneNumber === forgotPwdphoneNumber && userData.nationalId === forgotPwdNationalIdentityNum) {
+                    // Send password reset email via Firebase
+                    await sendPasswordResetEmail(auth, forgotEmail);
+                    console.error('Password reset email sent successfully');
+                    router.push('owner/privateSignIn');
+                } else {
+                    console.error('Invalid phone number or national ID');
+                }
+            } else {
+                console.error('User not found with this email');
+            }
+        } catch (error) {
+            console.error('Error in forgot password process:', error.message);
+        }
     };
 
     return (
@@ -30,7 +53,13 @@ const PrivateBusForgotPassword = () => {
                             <Text style={styles.subHeading}>Forgot Password</Text>
                         </View>
 
-                       
+                       <TextInput 
+                            style={styles.input}
+                            label="Email"
+                            value={forgotEmail}
+                            onChangeText={text => setForgotEmail(text)}
+                            mode="outlined"
+                        />
 
                         <TextInput 
                             style={styles.input}
@@ -49,42 +78,13 @@ const PrivateBusForgotPassword = () => {
                             mode="outlined"
                         />
 
-                        <TextInput 
-                            style={styles.input}
-                            label="NewPassword"
-                            value={newPassword}
-                            onChangeText={text => setNewPassword(text)}
-                            mode="outlined"
-                            secureTextEntry={!showNewPassword}
-                            right={
-                                <TextInput.Icon 
-                                    icon={showNewPassword ? 'eye-off' : 'eye'} 
-                                    onPress={() => setShowNewPassword(!showNewPassword)} 
-                                />
-                            }
-                        />
-
-                        <TextInput 
-                            style={styles.input}
-                            label="Confirm New Password"
-                            value={newConfirmPassword}
-                            onChangeText={text => setNewConfirmPassword(text)}
-                            mode="outlined"
-                            secureTextEntry={!showConfirmPassword}
-                            right={
-                                <TextInput.Icon 
-                                    icon={showConfirmPassword ? 'eye-off' : 'eye'} 
-                                    onPress={() => setShowConfirmPassword(!showConfirmPassword)} 
-                                />
-                            }
-                        />
 
                         <Button 
                             mode="contained" 
                             style={styles.signInButton} 
-                            onPress={handleSignIn}
+                            onPress={handleForgotPassword}
                         >
-                            Sign In
+                            Reset Password
                         </Button>
                     </View>
                 </ScrollView>
