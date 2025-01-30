@@ -1,15 +1,49 @@
-import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
-import React, { useState } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView, Platform, ActivityIndicator } from 'react-native';
+import React,{useEffect, useState} from 'react';
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import {db} from'../../db/firebaseConfig';
-import { collection,doc,addDoc } from 'firebase/firestore';
-
+import {auth,db} from'../../db/firebaseConfig';
+import { collection,doc,setDoc,getDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 const AddRegisterDriverBusScreen1 = () => {
     const router = useRouter();
     const [licencePlateNum, setLicencePlateNum] = useState('');
     const [routes, setRoutes] = useState([{ routeNum: '', busRoute: '' }]); // Array to store route number and bus route pairs
+    const [loading, setLoading] = useState(true);
+    const [ownerPhoneNumber, setOwnerPhoneNumber] = useState('');
+      useEffect(()=>{
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+          if(user){
+            setLoading(false);
+            // console.log('User is signed in');
+            const email = user.email;
+            try {
+                // Fetch owner details from Firestore using the email
+                const ownerDocRef = doc(db, 'ownerDetails', email);
+                const ownerDoc = await getDoc(ownerDocRef);
+      
+                if (ownerDoc.exists()) {
+                  setOwnerPhoneNumber(ownerDoc.data().phoneNumber);
+                } else {
+                  console.error('Owner document not found in Firestore.');
+                }
+              } catch (error) {
+                console.error('Error fetching owner details:', error);
+              }
+            } else {
+              router.push('screens/owner/privateSignIn');
+            }
+          });
+        return unsubscribe;
+      },[]);
     
+      if(loading){
+        return (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#6200ee" />
+          </View>
+        );
+      }
 //    const db = firebase.firestore();
 
     // Handler to add a new route input
@@ -27,29 +61,30 @@ const AddRegisterDriverBusScreen1 = () => {
     // Handler to save details and navigate to the next screen with the data
     const handleSubmit = async () => {
         try{
-        // saveBusData(licencePlateNum, routes);
-        // const busData = {
-        //     routes,
-        //     licencePlateNum
-        // };
-        // console.log(busData);
-        // router.push({
-        //     pathname: 'screens/owner/addRegisterDriverBusScreen2', // Adjust this path to the actual path of your next screen
-        //     params: { busData: JSON.stringify(busData) },
-        // });
          // Reference to the specific bus's route collection in Firestore
-        const busRef = doc(db, `privateOwners/0712663115/buses/${licencePlateNum}`);
+        const busRef = doc(db, `privateOwners/${ownerPhoneNumber}/buses/${licencePlateNum}`);
         const routesCollectionRef = collection(busRef, 'route');
 
         // Save each route to Firestore with an auto-generated document ID
         for (const route of routes) {
-            await addDoc(routesCollectionRef, {
+            const routeDocRef = doc(routesCollectionRef,route.routeNum);
+            await setDoc(routeDocRef, {
                 routeNum: route.routeNum,
                 busRoute: route.busRoute,
             });
         }
 
-        console.log("Data saved successfully to Firestore and locally:", busData);
+        console.log("Data saved successfully to Firestore and locally:");
+          // Pass data to the next screen
+          const busData = {
+            licencePlateNum,
+            routes,
+        };
+
+        router.push({
+            pathname: 'screens/owner/addRegisterDriverBusScreen2', // Adjust this path as needed
+            params: { busData: JSON.stringify(busData) }, // Serialize the object
+        });
 
         // Navigate to the next screen and pass the bus data as a parameter
         // router.push({
