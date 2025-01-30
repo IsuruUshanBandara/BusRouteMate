@@ -1,5 +1,6 @@
 import 'react-native-get-random-values'; // Ensure this is the first line
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import {GOOGLE_MAPS_API_KEY} from '@env';
 import {
   StyleSheet,
   View,
@@ -16,7 +17,7 @@ import { useRef, useState } from "react";
 import MapViewDirections from "react-native-maps-directions";
 import { router, useLocalSearchParams } from 'expo-router';
 
-const GOOGLE_API_KEY = "YOUR_GOOGLE_API_KEY"; // Replace with your actual API key
+const GOOGLE_API_KEY = GOOGLE_MAPS_API_KEY; // Replace with your actual API key
 
 const { width, height } = Dimensions.get("window");
 const ASPECT_RATIO = width / height;

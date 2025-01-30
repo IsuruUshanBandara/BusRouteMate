@@ -1,10 +1,33 @@
-import { StyleSheet,View } from 'react-native';
-import * as React from 'react';
+import { StyleSheet,View,ActivityIndicator } from 'react-native';
+import React,{useEffect, useState} from 'react';
 import { Card, Text } from 'react-native-paper';
 import{router, useRouter} from 'expo-router';
+import {auth} from '../../db/firebaseConfig';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const OwnerHome = () => {
   const route = useRouter();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(()=>{
+    const unsubscribe = onAuthStateChanged(auth, user => {
+      if(user){
+        setLoading(false);
+        // console.log('User is signed in');
+      }else{
+        route.push('screens/owner/privateSignIn');
+      }
+    });
+    return unsubscribe;
+  },[]);
+
+  if(loading){
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6200ee" />
+      </View>
+    );
+  }
   return (
     <View style={styles.container}>
         <Text style={styles.heading}>Welcome to Bus Route Mate</Text>
