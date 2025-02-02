@@ -7,7 +7,8 @@ import { collection,doc,setDoc,getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 const AddRegisterDriverBusScreen1 = () => {
     const router = useRouter();
-    const [licencePlateNum, setLicencePlateNum] = useState('');
+    const [origin, setOrigin] = useState('');
+    const [destination, setDestination] = useState('');
     const [routes, setRoutes] = useState([{ routeNum: '', busRoute: '' }]); // Array to store route number and bus route pairs
     const [loading, setLoading] = useState(true);
     const [ownerPhoneNumber, setOwnerPhoneNumber] = useState('');
@@ -82,7 +83,7 @@ const AddRegisterDriverBusScreen1 = () => {
         };
 
         router.push({
-            pathname: 'screens/owner/addRegisterDriverBusScreen1.1', // Adjust this path as needed
+            pathname: 'screens/owner/addRegisterDriverBusScreen2', // Adjust this path as needed
             params: { busData: JSON.stringify(busData) }, // Serialize the object
         });
 
@@ -107,14 +108,14 @@ const AddRegisterDriverBusScreen1 = () => {
                 <ScrollView contentContainerStyle={styles.scrollContainer}>
                     <View style={styles.centeredContent}>
                         <View style={styles.subHeadingContainer}>
-                            <Text style={styles.subHeading}>Add and Register Bus</Text>
+                            <Text style={styles.subHeading}>Passing Cities</Text>
                         </View>
 
                         <TextInput 
                             style={styles.input}
-                            label="License Plate Number"
-                            value={licencePlateNum}
-                            onChangeText={text => setLicencePlateNum(text)}
+                            label="Origin"
+                            value={origin}
+                            onChangeText={text => setOrigin(text)}
                             mode="outlined"
                         />
 
@@ -122,7 +123,7 @@ const AddRegisterDriverBusScreen1 = () => {
                             <View key={index}>
                                 <TextInput 
                                     style={styles.input}
-                                    label={`Route Number ${index + 1}`}
+                                    label={`Inbetween City ${index + 1}`}
                                     value={route.routeNum}
                                     onChangeText={text => {
                                         const updatedRoutes = [...routes];
@@ -131,19 +132,17 @@ const AddRegisterDriverBusScreen1 = () => {
                                     }}
                                     mode="outlined"
                                 />
-                                <TextInput 
-                                    style={styles.input}
-                                    label={`Bus Route ${index + 1} (e.g., Kegalle - Avissawella)`}
-                                    value={route.busRoute}
-                                    onChangeText={text => {
-                                        const updatedRoutes = [...routes];
-                                        updatedRoutes[index].busRoute = text;
-                                        setRoutes(updatedRoutes);
-                                    }}
-                                    mode="outlined"
-                                />
+                              
                             </View>
                         ))}
+
+                        <TextInput 
+                            style={styles.input}
+                            label="Destination"
+                            value={destination}
+                            onChangeText={text => setDestination(text)}
+                            mode="outlined"
+                        />
 
                         <Button 
                             mode="contained" 
