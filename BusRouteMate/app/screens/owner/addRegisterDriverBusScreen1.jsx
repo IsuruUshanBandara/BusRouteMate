@@ -62,15 +62,15 @@ const AddRegisterDriverBusScreen1 = () => {
     const handleSubmit = async () => {
         try{
          // Reference to the specific bus's route collection in Firestore
-        const busRef = doc(db, `privateOwners/${ownerPhoneNumber}/buses/${licencePlateNum}`);
-        const routesCollectionRef = collection(busRef, 'route');
+        // const busRef = doc(db, `privateOwners/${ownerPhoneNumber}/buses/${licencePlateNum}`);
+        const routesCollectionRef = collection(db, `privateOwners/${ownerPhoneNumber}/routes`);
 
         // Save each route to Firestore with an auto-generated document ID
         for (const route of routes) {
-            const routeDocRef = doc(routesCollectionRef,route.routeNum);
+            const routeDocRef = doc(routesCollectionRef,`${licencePlateNum}-${route.busRoute}`);
             await setDoc(routeDocRef, {
                 routeNum: route.routeNum,
-                busRoute: route.busRoute,
+                routeName: route.busRoute,
             });
         }
 
