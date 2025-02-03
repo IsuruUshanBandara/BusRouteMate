@@ -1,173 +1,157 @@
-import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView, Platform, ActivityIndicator } from 'react-native';
-import React,{useEffect, useState} from 'react';
-import { TextInput, Button } from 'react-native-paper';
+import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { TextInput, Button, IconButton } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import {auth,db} from'../../db/firebaseConfig';
-import { collection,doc,setDoc,getDoc } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
+import { useLocalSearchParams } from 'expo-router';
+
 const AddRegisterDriverBusScreen1 = () => {
+    const { busData } = useLocalSearchParams();
     const router = useRouter();
+
+    // State to manage parsed data and plate number
+    const [parsedBusData, setParsedBusData] = useState([]);
+    const [plateNum, setPlateNum] = useState('');
+    const [currentRouteIndex, setCurrentRouteIndex] = useState(0);
     const [origin, setOrigin] = useState('');
     const [destination, setDestination] = useState('');
-    const [routes, setRoutes] = useState([{ routeNum: '', busRoute: '' }]); // Array to store route number and bus route pairs
-    const [loading, setLoading] = useState(true);
-    const [ownerPhoneNumber, setOwnerPhoneNumber] = useState('');
-      useEffect(()=>{
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-          if(user){
-            setLoading(false);
-            // console.log('User is signed in');
-            const email = user.email;
-            try {
-                // Fetch owner details from Firestore using the email
-                const ownerDocRef = doc(db, 'ownerDetails', email);
-                const ownerDoc = await getDoc(ownerDocRef);
-      
-                if (ownerDoc.exists()) {
-                  setOwnerPhoneNumber(ownerDoc.data().phoneNumber);
-                } else {
-                  console.error('Owner document not found in Firestore.');
-                }
-              } catch (error) {
-                console.error('Error fetching owner details:', error);
-              }
-            } else {
-              router.push('screens/owner/privateSignIn');
-            }
-          });
-        return unsubscribe;
-      },[]);
-    
-      if(loading){
-        return (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#6200ee" />
-          </View>
-        );
-      }
-//    const db = firebase.firestore();
+    const [passingCities, setPassingCities] = useState(['']);
+    const [routeData, setRouteData] = useState([]);
 
-    // Handler to add a new route input
-    const addRoute = () => {
-        setRoutes([...routes, { routeNum: '', busRoute: '' }]);
+    // Parse bus data only once when `busData` is available
+    useEffect(() => {
+        if (busData) {
+            const data = JSON.parse(busData);
+            setParsedBusData(data.routes || []);
+            setPlateNum(data.licencePlateNum || '');
+        }
+    }, [busData]);
+
+    useEffect(() => {
+        if (parsedBusData.length > 0) {
+            const initialRoute = parsedBusData[0];
+
+            // Prevent unnecessary state updates
+            setOrigin((prev) => (prev !== initialRoute.origin ? initialRoute.origin || '' : prev));
+            setDestination((prev) => (prev !== initialRoute.destination ? initialRoute.destination || '' : prev));
+            setPassingCities((prev) =>
+                JSON.stringify(prev) !== JSON.stringify(initialRoute.passingCities) ? initialRoute.passingCities || [''] : prev
+            );
+        }
+    }, [parsedBusData]);
+
+    const addPassingCity = () => {
+        setPassingCities([...passingCities, '']);
     };
 
-    // Handler to remove the last route input
-    const removeLastRoute = () => {
-        if (routes.length > 1) {
-            setRoutes(routes.slice(0, -1)); // Remove the last route pair
+    const updatePassingCity = (text, index) => {
+        const updatedCities = [...passingCities];
+        updatedCities[index] = text;
+        setPassingCities(updatedCities);
+    };
+
+    const removePassingCity = (index) => {
+        if (index > 0) {
+            setPassingCities((prev) => prev.filter((_, i) => i !== index));
         }
     };
 
-    // Handler to save details and navigate to the next screen with the data
-    const handleSubmit = async () => {
-        try{
-         // Reference to the specific bus's route collection in Firestore
-        const busRef = doc(db, `privateOwners/${ownerPhoneNumber}/buses/${licencePlateNum}`);
-        const routesCollectionRef = collection(busRef, 'route');
+    const handleNext = () => {
+        const updatedRoutes = [...routeData, {
+            routeNum: parsedBusData[currentRouteIndex].routeNum,
+            origin,
+            passingCities,
+            destination
+        }];
+        setRouteData(updatedRoutes);
 
-        // Save each route to Firestore with an auto-generated document ID
-        for (const route of routes) {
-            const routeDocRef = doc(routesCollectionRef,route.routeNum);
-            await setDoc(routeDocRef, {
-                routeNum: route.routeNum,
-                busRoute: route.busRoute,
-            });
+        if (currentRouteIndex + 1 < parsedBusData.length) {
+            const nextRoute = parsedBusData[currentRouteIndex + 1];
+            setOrigin(nextRoute.origin || '');
+            setDestination(nextRoute.destination || '');
+            setPassingCities(nextRoute.passingCities && nextRoute.passingCities.length > 0 ? [...nextRoute.passingCities] : ['']);
+            setCurrentRouteIndex(currentRouteIndex + 1);
         }
+        // console.log("Before update:", passingCities);
+        // setPassingCities((nextRoute.passingCities && nextRoute.passingCities.length > 0) ? [...nextRoute.passingCities] : ['']);
+        // console.log("After update:", passingCities);
+    };
 
-        console.log("Data saved successfully to Firestore and locally:");
-          // Pass data to the next screen
-          const busData = {
-            licencePlateNum,
-            routes,
-        };
+    const handleSubmit = () => {
+        const finalRoutes = [...routeData, {
+            routeNum: parsedBusData[currentRouteIndex].routeNum,
+            origin,
+            passingCities,
+            destination
+        }];
 
         router.push({
-            pathname: 'screens/owner/addRegisterDriverBusScreen2', // Adjust this path as needed
-            params: { busData: JSON.stringify(busData) }, // Serialize the object
+            pathname: 'screens/owner/addRegisterDriverBusScreen2',
+            params: { busData: JSON.stringify({ licencePlateNum: plateNum, routes: finalRoutes }) },
         });
-
-        // Navigate to the next screen and pass the bus data as a parameter
-        // router.push({
-        //     pathname: 'screens/owner/addRegisterDriverBusScreen2', // Adjust this path as needed
-        //     params: { busData: JSON.stringify(busData) },
-        // });
-        } catch (error) {
-         console.error("Error saving data:", error);
-        }
-
     };
-
 
     return (
         <SafeAreaView style={styles.container}>
-            <KeyboardAvoidingView 
-                style={styles.container} 
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            >
+            <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                 <ScrollView contentContainerStyle={styles.scrollContainer}>
                     <View style={styles.centeredContent}>
                         <View style={styles.subHeadingContainer}>
-                            <Text style={styles.subHeading}>Passing Cities</Text>
+                            <Text style={styles.subHeading}>
+                                Passing Cities for Route {parsedBusData[currentRouteIndex]?.routeNum || ''}
+                            </Text>
                         </View>
 
-                        <TextInput 
+                        <TextInput
                             style={styles.input}
                             label="Origin"
                             value={origin}
-                            onChangeText={text => setOrigin(text)}
+                            onChangeText={setOrigin}
                             mode="outlined"
                         />
-
-                        {routes.map((route, index) => (
-                            <View key={index}>
-                                <TextInput 
-                                    style={styles.input}
-                                    label={`Inbetween City ${index + 1}`}
-                                    value={route.routeNum}
-                                    onChangeText={text => {
-                                        const updatedRoutes = [...routes];
-                                        updatedRoutes[index].routeNum = text;
-                                        setRoutes(updatedRoutes);
-                                    }}
-                                    mode="outlined"
-                                />
-                              
-                            </View>
-                        ))}
-
-                        <TextInput 
+                        {passingCities.length > 0 && (
+                            <>
+                                {passingCities.map((city, index) => (
+                                    <View key={index} style={styles.cityContainer}>
+                                        <TextInput
+                                            style={[styles.input, { flex: 1 }]}
+                                            label={`In-Between City ${index + 1}`}
+                                            value={city}
+                                            onChangeText={(text) => updatePassingCity(text, index)}
+                                            mode="outlined"
+                                        />
+                                        {index > 0 && (
+                                            <IconButton
+                                                icon="delete"
+                                                size={20}
+                                                onPress={() => removePassingCity(index)}
+                                                style={styles.deleteIcon}
+                                            />
+                                        )}
+                                    </View>
+                                ))}
+                            </>
+                        )}
+                        <TextInput
                             style={styles.input}
                             label="Destination"
                             value={destination}
-                            onChangeText={text => setDestination(text)}
+                            onChangeText={setDestination}
                             mode="outlined"
                         />
 
-                        <Button 
-                            mode="contained" 
-                            style={styles.addButton} 
-                            onPress={addRoute}
-                        >
-                            Add More Route
+                        <Button mode="contained" style={styles.addButton} onPress={addPassingCity}>
+                            Add In-Between City
                         </Button>
 
-                        <Button 
-                            mode="contained" 
-                            style={styles.removeButton} 
-                            onPress={removeLastRoute}
-                            disabled={routes.length === 1} // Disable if only one route
-                        >
-                            Remove Last Route
-                        </Button>
-
-                        <Button 
-                            mode="contained" 
-                            style={styles.submitButton} 
-                            onPress={handleSubmit}
-                        >
-                            Save
-                        </Button>
+                        {currentRouteIndex < parsedBusData.length - 1 ? (
+                            <Button mode="contained" style={styles.nextButton} onPress={handleNext}>
+                                Next
+                            </Button>
+                        ) : (
+                            <Button mode="contained" style={styles.submitButton} onPress={handleSubmit}>
+                                Save
+                            </Button>
+                        )}
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -203,18 +187,22 @@ const styles = StyleSheet.create({
     input: {
         marginVertical: 10,
     },
+    cityContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     addButton: {
         marginTop: 10,
         paddingVertical: 6,
         width: '100%',
         alignSelf: 'center',
     },
-    removeButton: {
-        marginTop: 10,
+    nextButton: {
+        marginTop: 20,
         paddingVertical: 6,
         width: '100%',
         alignSelf: 'center',
-        backgroundColor: '#D32F2F', // Optional: Different color for remove button
+        backgroundColor: '#1976D2',
     },
     submitButton: {
         marginTop: 20,
