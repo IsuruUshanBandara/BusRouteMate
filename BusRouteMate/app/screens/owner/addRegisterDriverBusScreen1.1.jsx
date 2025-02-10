@@ -1,14 +1,14 @@
-import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView, Platform,ActivityIndicator } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { TextInput, Button, IconButton } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useLocalSearchParams } from 'expo-router';
-
+import {auth,db} from'../../db/firebaseConfig';
+import { collection,doc,setDoc,getDoc, or } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 const AddRegisterDriverBusScreen1 = () => {
     const { busData } = useLocalSearchParams();
     const router = useRouter();
-
-    // State to manage parsed data and plate number
     const [parsedBusData, setParsedBusData] = useState([]);
     const [plateNum, setPlateNum] = useState('');
     const [currentRouteIndex, setCurrentRouteIndex] = useState(0);
@@ -16,7 +16,9 @@ const AddRegisterDriverBusScreen1 = () => {
     const [destination, setDestination] = useState('');
     const [passingCities, setPassingCities] = useState(['']);
     const [routeData, setRouteData] = useState([]);
-
+    const [loading, setLoading] = useState(true);
+    const [ownerPhoneNumber, setOwnerPhoneNumber] = useState('');
+    
     // Parse bus data only once when `busData` is available
     useEffect(() => {
         if (busData) {
@@ -39,6 +41,44 @@ const AddRegisterDriverBusScreen1 = () => {
         }
     }, [parsedBusData]);
 
+    // Authentication
+    useEffect(()=>{
+            const unsubscribe = onAuthStateChanged(auth, async (user) => {
+              if(user){
+                // setLoading(false);
+                // console.log('User is signed in');
+                
+                try {
+                    // Fetch owner details from Firestore using the email
+                    const email = user.email;
+                    const ownerDocRef = doc(db, 'ownerDetails', email);
+                    const ownerDoc = await getDoc(ownerDocRef);
+          
+                    if (ownerDoc.exists()) {
+                        setOwnerPhoneNumber(ownerDoc.data().phoneNumber);
+                    } else {
+                      console.error('Owner document not found in Firestore.');
+                    }
+                  } catch (error) {
+                    console.error('Error fetching owner details:', error);
+                  }
+                  setLoading(false);
+                } else {
+                    router.push('../../(auth)/owner/privateSignIn');
+                    setLoading(false);
+                }
+              });
+            return unsubscribe;
+          },[]);
+        
+    if(loading){
+    return (
+        <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6200ee" />
+        </View>
+    );
+    }
+
     const addPassingCity = () => {
         setPassingCities([...passingCities, '']);
     };
@@ -56,10 +96,11 @@ const AddRegisterDriverBusScreen1 = () => {
     };
 
     const handleNext = () => {
+        const updatedPassingCities = [origin, ...passingCities, destination];
         const updatedRoutes = [...routeData, {
             routeNum: parsedBusData[currentRouteIndex].routeNum,
             origin,
-            passingCities,
+            passingCities:updatedPassingCities,
             destination
         }];
         setRouteData(updatedRoutes);
@@ -71,23 +112,26 @@ const AddRegisterDriverBusScreen1 = () => {
             setPassingCities(nextRoute.passingCities && nextRoute.passingCities.length > 0 ? [...nextRoute.passingCities] : ['']);
             setCurrentRouteIndex(currentRouteIndex + 1);
         }
-        // console.log("Before update:", passingCities);
-        // setPassingCities((nextRoute.passingCities && nextRoute.passingCities.length > 0) ? [...nextRoute.passingCities] : ['']);
-        // console.log("After update:", passingCities);
+        console.log('Route Data 1.1:', updatedRoutes);
     };
 
-    const handleSubmit = () => {
-        const finalRoutes = [...routeData, {
-            routeNum: parsedBusData[currentRouteIndex].routeNum,
-            origin,
-            passingCities,
-            destination
-        }];
-
-        router.push({
-            pathname: 'screens/owner/addRegisterDriverBusScreen2',
-            params: { busData: JSON.stringify({ licencePlateNum: plateNum, routes: finalRoutes }) },
-        });
+    const handleSubmit = async () => {
+        try{
+            
+            const finalRoutes = [...routeData, {
+                routeNum: parsedBusData[currentRouteIndex].routeNum,
+                origin,
+                passingCities: [origin, ...passingCities, destination],
+                destination
+            }];
+            // console.log('Route Data 1.1:', finalRoutes);
+            router.push({
+                pathname: 'screens/owner/addRegisterDriverBusScreen2',
+                params: { busData: JSON.stringify({ licencePlateNum: plateNum, routes: finalRoutes }) },
+            });
+        } catch (error){
+            console.error("Error saving data:", error);
+        }
     };
 
     return (
