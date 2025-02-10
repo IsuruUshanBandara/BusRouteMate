@@ -14,11 +14,12 @@ const AddRegisterDriverBusScreen1 = () => {
       useEffect(()=>{
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
           if(user){
-            setLoading(false);
+            // setLoading(false);
             // console.log('User is signed in');
-            const email = user.email;
+            
             try {
                 // Fetch owner details from Firestore using the email
+                const email = user.email;
                 const ownerDocRef = doc(db, 'ownerDetails', email);
                 const ownerDoc = await getDoc(ownerDocRef);
       
@@ -30,8 +31,10 @@ const AddRegisterDriverBusScreen1 = () => {
               } catch (error) {
                 console.error('Error fetching owner details:', error);
               }
+              setLoading(false);
             } else {
               router.push('screens/owner/privateSignIn');
+              setLoading(false);
             }
           });
         return unsubscribe;
