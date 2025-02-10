@@ -4,7 +4,7 @@ import { TextInput, Button, IconButton } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useLocalSearchParams } from 'expo-router';
 import {auth,db} from'../../db/firebaseConfig';
-import { collection,doc,setDoc,getDoc, or } from 'firebase/firestore';
+import { collection,doc,setDoc,getDoc,updateDoc} from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 const AddRegisterDriverBusScreen1 = () => {
     const { busData } = useLocalSearchParams();
@@ -117,14 +117,54 @@ const AddRegisterDriverBusScreen1 = () => {
 
     const handleSubmit = async () => {
         try{
+            // Create a reference to the routes collection in Firestore
+            const routesCollectionRef = collection(db, `privateOwners/${ownerPhoneNumber}/routes`);
             
             const finalRoutes = [...routeData, {
                 routeNum: parsedBusData[currentRouteIndex].routeNum,
                 origin,
                 passingCities: [origin, ...passingCities, destination],
-                destination
+                destination,
+                busRoute: parsedBusData[currentRouteIndex].busRoute,
             }];
-            // console.log('Route Data 1.1:', finalRoutes);
+
+             // Save each route to Firestore
+            // for (const route of finalRoutes) {
+            //     const routeDocRef = doc(routesCollectionRef, `${plateNum}-${route.busRoute}`);
+            //     await setDoc(routeDocRef, {
+            //         origin: route.origin,
+            //         destination: route.destination,
+            //         passingCities: route.passingCities, // This is an array
+            //     });
+            // }
+
+            for (const route of finalRoutes) {
+                const routeDocRef = doc(routesCollectionRef, `${plateNum}-${route.busRoute}`);
+    
+                // Check if the document exists to either create it (setDoc) or update it (updateDoc)
+                const docSnapshot = await getDoc(routeDocRef);
+                if (docSnapshot.exists()) {
+                    // Update the document with new fields (does not overwrite)
+                    await updateDoc(routeDocRef, {
+                        origin: route.origin,
+                        destination: route.destination,
+                        passingCities: route.passingCities, // This is an array
+                    });
+                } else {
+                    // If the document does not exist, create it
+                    await setDoc(routeDocRef, {
+                        routeNum: route.routeNum,
+                        routeName: route.busRoute,
+                        origin: route.origin,
+                        destination: route.destination,
+                        passingCities: route.passingCities, // This is an array
+                    });
+                }
+            }
+
+            console.log("Data saved successfully to Firestore:");
+
+            
             router.push({
                 pathname: 'screens/owner/addRegisterDriverBusScreen2',
                 params: { busData: JSON.stringify({ licencePlateNum: plateNum, routes: finalRoutes }) },
