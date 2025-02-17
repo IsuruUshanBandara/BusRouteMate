@@ -127,9 +127,10 @@ const AddRegisterDriverBusScreen1 = () => {
                 destination,
                 busRoute: parsedBusData[currentRouteIndex].busRoute,
             }];
+            // console.log('Final Routes:', finalRoutes);
 
             // Save each route to Firestore
-        
+            
             for (const route of finalRoutes) {
                 const routeDocRef = doc(routesCollectionRef, `${plateNum}-${route.busRoute}`);
     
