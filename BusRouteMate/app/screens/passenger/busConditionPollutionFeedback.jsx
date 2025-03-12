@@ -52,7 +52,7 @@ const BusConditionPollutionFeedback = () => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
         {/* Main Heading */}
-        <Title style={styles.heading}>Customer satisfaction and suggestions</Title>
+        <Title style={styles.heading}>Bus Condition and Pollution Feedback</Title>
 
         {/* Message */}
         <Text style={styles.message}>

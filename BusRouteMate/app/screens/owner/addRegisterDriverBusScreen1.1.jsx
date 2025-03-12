@@ -1,11 +1,66 @@
-import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView, Platform,ActivityIndicator } from 'react-native';
-import React, { useEffect, useState } from 'react';
-import { TextInput, Button, IconButton } from 'react-native-paper';
+import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { Button, IconButton } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useLocalSearchParams } from 'expo-router';
-import {auth,db} from'../../db/firebaseConfig';
-import { collection,doc,setDoc,getDoc,updateDoc} from 'firebase/firestore';
+import { auth, db } from '../../db/firebaseConfig';
+import { collection, doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { GOOGLE_MAPS_API_KEY } from '@env';
+
+const GOOGLE_API_KEY = GOOGLE_MAPS_API_KEY;
+
+// Custom Autocomplete Input Component - modified to not use scrollable lists
+function InputAutocomplete({ placeholder, value, onPlaceSelected, index = null }) {
+  const ref = useRef();
+
+  // Clear input when value changes to empty string
+  useEffect(() => {
+    if (value === '' && ref.current) {
+      ref.current.clear();
+    }
+  }, [value]);
+
+  return (
+    <GooglePlacesAutocomplete
+      ref={ref}
+      styles={{
+        container: {
+          flex: 0,
+          marginVertical: 10,
+        },
+        textInput: styles.input,
+        listView: {
+          position: 'absolute',
+          top: 50,
+          left: 0,
+          right: 0,
+          backgroundColor: 'white',
+          zIndex: 1000,
+          elevation: 3,
+        },
+      }}
+      placeholder={placeholder || ""}
+      fetchDetails
+      onPress={(data, details = null) => {
+        const cityName = details?.name || data.description;
+        onPlaceSelected(cityName, index);
+      }}
+      query={{
+        key: GOOGLE_API_KEY,
+        language: "en",
+      }}
+      textInputProps={{
+        defaultValue: value,
+      }}
+      enablePoweredByContainer={false}
+      keyboardShouldPersistTaps="handled"
+      listViewDisplayed={false} // Only show when typing
+    />
+  );
+}
+
 const AddRegisterDriverBusScreen1 = () => {
     const { busData } = useLocalSearchParams();
     const router = useRouter();
@@ -42,41 +97,38 @@ const AddRegisterDriverBusScreen1 = () => {
     }, [parsedBusData]);
 
     // Authentication
-    useEffect(()=>{
-            const unsubscribe = onAuthStateChanged(auth, async (user) => {
-              if(user){
-                // setLoading(false);
-                // console.log('User is signed in');
-                
-                try {
-                    // Fetch owner details from Firestore using the email
-                    const email = user.email;
-                    const ownerDocRef = doc(db, 'ownerDetails', email);
-                    const ownerDoc = await getDoc(ownerDocRef);
-          
-                    if (ownerDoc.exists()) {
-                        setOwnerPhoneNumber(ownerDoc.data().phoneNumber);
-                    } else {
-                      console.error('Owner document not found in Firestore.');
-                    }
-                  } catch (error) {
-                    console.error('Error fetching owner details:', error);
-                  }
-                  setLoading(false);
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+          if(user) {
+            try {
+                // Fetch owner details from Firestore using the email
+                const email = user.email;
+                const ownerDocRef = doc(db, 'ownerDetails', email);
+                const ownerDoc = await getDoc(ownerDocRef);
+      
+                if (ownerDoc.exists()) {
+                    setOwnerPhoneNumber(ownerDoc.data().phoneNumber);
                 } else {
-                    router.push('../../(auth)/owner/privateSignIn');
-                    setLoading(false);
+                  console.error('Owner document not found in Firestore.');
                 }
-              });
-            return unsubscribe;
-          },[]);
+              } catch (error) {
+                console.error('Error fetching owner details:', error);
+              }
+              setLoading(false);
+            } else {
+                router.push('../../(auth)/owner/privateSignIn');
+                setLoading(false);
+            }
+          });
+        return unsubscribe;
+    }, []);
         
-    if(loading){
-    return (
-        <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
-        </View>
-    );
+    if(loading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#6200ee" />
+            </View>
+        );
     }
 
     const addPassingCity = () => {
@@ -100,8 +152,9 @@ const AddRegisterDriverBusScreen1 = () => {
         const updatedRoutes = [...routeData, {
             routeNum: parsedBusData[currentRouteIndex].routeNum,
             origin,
-            passingCities:updatedPassingCities,
-            destination
+            passingCities: updatedPassingCities,
+            destination,
+            busRoute: parsedBusData[currentRouteIndex].busRoute,
         }];
         setRouteData(updatedRoutes);
 
@@ -116,7 +169,7 @@ const AddRegisterDriverBusScreen1 = () => {
     };
 
     const handleSubmit = async () => {
-        try{
+        try {
             // Create a reference to the routes collection in Firestore
             const routesCollectionRef = collection(db, `privateOwners/${ownerPhoneNumber}/routes`);
             
@@ -127,10 +180,8 @@ const AddRegisterDriverBusScreen1 = () => {
                 destination,
                 busRoute: parsedBusData[currentRouteIndex].busRoute,
             }];
-            // console.log('Final Routes:', finalRoutes);
 
             // Save each route to Firestore
-            
             for (const route of finalRoutes) {
                 const routeDocRef = doc(routesCollectionRef, `${plateNum}-${route.busRoute}`);
     
@@ -156,13 +207,12 @@ const AddRegisterDriverBusScreen1 = () => {
             }
 
             console.log("Data saved successfully to Firestore:");
-
             
             router.push({
                 pathname: 'screens/owner/addRegisterDriverBusScreen2',
                 params: { busData: JSON.stringify({ licencePlateNum: plateNum, routes: finalRoutes }) },
             });
-        } catch (error){
+        } catch (error) {
             console.error("Error saving data:", error);
         }
     };
@@ -170,7 +220,8 @@ const AddRegisterDriverBusScreen1 = () => {
     return (
         <SafeAreaView style={styles.container}>
             <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                <ScrollView contentContainerStyle={styles.scrollContainer}>
+                {/* ScrollView removed, using a regular View with padding instead */}
+                <View style={styles.contentContainer}>
                     <View style={styles.centeredContent}>
                         <View style={styles.subHeadingContainer}>
                             <Text style={styles.subHeading}>
@@ -178,42 +229,37 @@ const AddRegisterDriverBusScreen1 = () => {
                             </Text>
                         </View>
 
-                        <TextInput
-                            style={styles.input}
-                            label="Origin"
+                        <InputAutocomplete
+                            placeholder="Origin"
                             value={origin}
-                            onChangeText={setOrigin}
-                            mode="outlined"
+                            onPlaceSelected={(text) => setOrigin(text)}
                         />
-                        {passingCities.length > 0 && (
-                            <>
-                                {passingCities.map((city, index) => (
-                                    <View key={index} style={styles.cityContainer}>
-                                        <TextInput
-                                            style={[styles.input, { flex: 1 }]}
-                                            label={`In-Between City ${index + 1}`}
-                                            value={city}
-                                            onChangeText={(text) => updatePassingCity(text, index)}
-                                            mode="outlined"
-                                        />
-                                        {index > 0 && (
-                                            <IconButton
-                                                icon="delete"
-                                                size={20}
-                                                onPress={() => removePassingCity(index)}
-                                                style={styles.deleteIcon}
-                                            />
-                                        )}
-                                    </View>
-                                ))}
-                            </>
-                        )}
-                        <TextInput
-                            style={styles.input}
-                            label="Destination"
+
+                        {passingCities.map((city, index) => (
+                            <View key={index} style={styles.cityContainer}>
+                                <View style={{ flex: 1 }}>
+                                    <InputAutocomplete
+                                        placeholder={`In-Between City ${index + 1}`}
+                                        value={city}
+                                        onPlaceSelected={(text) => updatePassingCity(text, index)}
+                                        index={index}
+                                    />
+                                </View>
+                                {index > 0 && (
+                                    <IconButton
+                                        icon="delete"
+                                        size={20}
+                                        onPress={() => removePassingCity(index)}
+                                        style={styles.deleteIcon}
+                                    />
+                                )}
+                            </View>
+                        ))}
+
+                        <InputAutocomplete
+                            placeholder="Destination"
                             value={destination}
-                            onChangeText={setDestination}
-                            mode="outlined"
+                            onPlaceSelected={(text) => setDestination(text)}
                         />
 
                         <Button mode="contained" style={styles.addButton} onPress={addPassingCity}>
@@ -230,7 +276,7 @@ const AddRegisterDriverBusScreen1 = () => {
                             </Button>
                         )}
                     </View>
-                </ScrollView>
+                </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -242,10 +288,11 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    scrollContainer: {
+    contentContainer: {
         flexGrow: 1,
         paddingHorizontal: '5%',
         paddingBottom: '5%',
+        paddingTop: '5%',
     },
     centeredContent: {
         flex: 1,
@@ -262,11 +309,21 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     input: {
-        marginVertical: 10,
+        height: 50,
+        borderColor: '#ccc',
+        borderWidth: 1,
+        borderRadius: 5,
+        paddingLeft: 10,
+        marginBottom: 10,
+        backgroundColor: 'white',
     },
     cityContainer: {
         flexDirection: 'row',
         alignItems: 'center',
+        zIndex: 1000, // Ensure autocomplete dropdown appears above other elements
+    },
+    deleteIcon: {
+        marginLeft: 5,
     },
     addButton: {
         marginTop: 10,
@@ -286,5 +343,10 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
         width: '100%',
         alignSelf: 'center',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });
