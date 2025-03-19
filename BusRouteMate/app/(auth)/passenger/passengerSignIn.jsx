@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-
+import { auth } from '../../db/firebaseConfig';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 const PassengerSignIn = () => {
     const router = useRouter();
     const [passengerEmail, setPassengerEmail] = useState('');
@@ -10,9 +11,23 @@ const PassengerSignIn = () => {
     const [showPassword, setShowPassword] = useState(false);
 
     const handleSignIn = () => {
-        console.log('Password',password);
-        console.log('Email',passengerEmail);
-        router.push('../../screens/passenger/passengerHome');
+        if (!passengerEmail || !password) {
+            console.error('All fields are required.');
+            return;
+        }
+    
+        signInWithEmailAndPassword(auth, passengerEmail, password)
+            .then((userCredential) => {
+                const user = userCredential.user;
+                console.log("Passenger signed in successfully:", user);
+                router.push('../../screens/passenger/passengerHome');
+            })
+            .catch((error) => {
+                console.error("Error signing in passenger:", error.message);
+            });
+        // console.log('Password',password);
+        // console.log('Email',passengerEmail);
+        // router.push('../../screens/passenger/passengerHome');
     };
 
     return (
