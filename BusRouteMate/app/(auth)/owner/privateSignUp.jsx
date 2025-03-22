@@ -34,6 +34,7 @@ const PrivateBusSignUp = () => {
             email:email,
             phoneNumber:phoneNumber,
             nationalId:nationalIdentityNum,
+            role:"privateOwners",
             createdAt: new Date()
         });
         console.log("User created successfully:", user);

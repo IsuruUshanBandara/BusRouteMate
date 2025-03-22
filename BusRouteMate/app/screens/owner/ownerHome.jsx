@@ -48,7 +48,7 @@ const OwnerHome = () => {
         </Card>
 
          {/* Full-width Card 4 */}
-         <Card style={styles.card} onPress={() => console.log('view feedback')}>
+         <Card style={styles.card} onPress={() => router.push('screens/owner/viewFeedbackScreen1')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="View Feedback"/>
         </Card>
 
