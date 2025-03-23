@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, ActivityIndicator, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { PieChart, BarChart } from 'react-native-gifted-charts';
 import { useRouter } from 'expo-router';
@@ -45,6 +45,21 @@ const ViewFeedbackScreen2 = () => {
     fetchFeedback();
   }, [busPlate]);
 
+  // Navigation functions
+  const navigateToSuggestions = () => {
+    router.push({
+      pathname: "screens/owner/viewSuggestionsScreen",
+      params: { busPlate }
+    });
+  };
+
+  const navigateToReasons = (type) => {
+    router.push({
+      pathname: "screens/owner/viewRatingReasonScreen",
+      params: { busPlate, reasonType: type }
+    });
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -74,6 +89,13 @@ const ViewFeedbackScreen2 = () => {
   const satisfactionRatings = feedbackData
     .filter(feedback => feedback.satisfactionSuggestions && feedback.satisfactionSuggestions.satisfactionRating)
     .map(feedback => feedback.satisfactionSuggestions.satisfactionRating);
+
+  // Count suggestions
+  const suggestionCount = feedbackData.filter(
+    feedback => feedback.satisfactionSuggestions && 
+    feedback.satisfactionSuggestions.suggestion && 
+    feedback.satisfactionSuggestions.suggestion.trim() !== ''
+  ).length;
 
   const busConditionRatings = feedbackData
     .filter(feedback => feedback.busConditionPollution && feedback.busConditionPollution.conditionRating)
@@ -198,6 +220,12 @@ const ViewFeedbackScreen2 = () => {
             textSize={14}
             focusOnPress
           />
+          <TouchableOpacity 
+            style={styles.linkButton} 
+            onPress={() => navigateToReasons('conductor')}
+          >
+            <Text style={styles.linkButtonText}>View Conductor Rating Reasons</Text>
+          </TouchableOpacity>
         </View>
       )}
       
@@ -214,6 +242,12 @@ const ViewFeedbackScreen2 = () => {
             textSize={14}
             focusOnPress
           />
+          <TouchableOpacity 
+            style={styles.linkButton} 
+            onPress={() => navigateToReasons('driver')}
+          >
+            <Text style={styles.linkButtonText}>View Driver Rating Reasons</Text>
+          </TouchableOpacity>
         </View>
       )}
       
@@ -255,6 +289,12 @@ const ViewFeedbackScreen2 = () => {
               textSize={14}
               focusOnPress
             />
+            <TouchableOpacity 
+              style={styles.linkButton} 
+              onPress={() => navigateToReasons('busCondition')}
+            >
+              <Text style={styles.linkButtonText}>View Bus Condition Reasons</Text>
+            </TouchableOpacity>
           </View>
         </>
       )}
@@ -292,6 +332,20 @@ const ViewFeedbackScreen2 = () => {
           </View>
         </>
       )}
+
+      {/* Overall Suggestions Section */}
+      <View style={styles.suggestionContainer}>
+        <Text style={styles.subtitle}>Passenger Suggestions</Text>
+        <Text style={styles.suggestionCount}>
+          {suggestionCount} {suggestionCount === 1 ? 'passenger has' : 'passengers have'} provided suggestions
+        </Text>
+        <TouchableOpacity 
+          style={styles.viewSuggestionsButton} 
+          onPress={navigateToSuggestions}
+        >
+          <Text style={styles.viewSuggestionsButtonText}>View All Suggestions</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 };
@@ -357,5 +411,45 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     marginRight: 6,
+  },
+  // View Reason Button Styles
+  linkButton: {
+    marginTop: 10,
+    padding: 5,
+  },
+  linkButtonText: {
+    color: '#2196F3',
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+  // Suggestion Section Styles
+  suggestionContainer: {
+    alignItems: 'center',
+    marginVertical: 20,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    backgroundColor: '#f0f8ff', // Light blue background
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e1e4e8',
+  },
+  suggestionCount: {
+    fontSize: 16,
+    marginVertical: 10,
+    textAlign: 'center',
+  },
+  viewSuggestionsButton: {
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 6,
+    marginTop: 10,
+    elevation: 2,
+  },
+  viewSuggestionsButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+    textAlign: 'center',
   },
 });

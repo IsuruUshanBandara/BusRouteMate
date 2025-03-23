@@ -39,33 +39,46 @@ const DriverConductorRatingFeedback = () => {
     }
   
     const feedbackPath = `passengerFeedback/${numberPlate}-${user.email}`;
-  
+    const docRef = doc(db, feedbackPath);
+
+  try {
+    const docSnap = await getDoc(docRef);
+    let existingData = docSnap.exists() ? docSnap.data() : {};
+
+    // Check if busPlate exists in the document
+    const busPlateExists = existingData.busPlate !== undefined;
+
+    // Construct feedback data
     const feedbackData = {
-      driverConductor: {
+       driverConductor: {
         driverRating,
         driverRatingReason,
         conductorRating,
         conductorRatingReason,
+        
       },
+        
+      timestamp: new Date().toISOString(), // Adding timestamp
     };
-  
-    try {
-      const docRef = doc(db, feedbackPath);
-      const docSnap = await getDoc(docRef);
-  
-      if (docSnap.exists()) {
-        // If the document exists, update it
-        await setDoc(docRef, feedbackData, { merge: true });
-        console.log("Feedback updated successfully.");
-      } else {
-        // If the document does not exist, create it
-        await setDoc(docRef, feedbackData);
-        console.log("Feedback submitted successfully.");
-      }
-    } catch (error) {
-      console.error("Error saving feedback:", error);
+
+    // Only add busPlate if it's not already present
+    if (!busPlateExists) {
+      feedbackData.busPlate = numberPlate;
     }
-  };
+
+    if (docSnap.exists()) {
+      // Update existing document
+      await setDoc(docRef, feedbackData, { merge: true });
+      console.log("Feedback updated successfully.");
+    } else {
+      // Create new document
+      await setDoc(docRef, feedbackData);
+      console.log("Feedback submitted successfully.");
+    }
+  } catch (error) {
+    console.error("Error saving feedback:", error);
+  }
+};
 
   return (
     <ScrollView contentContainerStyle={styles.container}>

@@ -65,30 +65,41 @@ const BusConditionPollutionFeedback = () => {
   }
 
   const feedbackPath = `passengerFeedback/${numberPlate}-${user.email}`;
-
-  const feedbackData = {
-    busConditionPollution: {
-      conditionRating,
-      ratingReason,
-      pollutionIssues: {
-        excessiveSmoke: pollutionIssues.excessiveSmoke || "None",
-        loudSilencer: pollutionIssues.loudNoise || "None",
-        excessiveHorn: pollutionIssues.excessiveHorn || "None",
-      },
-    },
-    
-  };
+  const docRef = doc(db, feedbackPath);
 
   try {
-    const docRef = doc(db, feedbackPath);
     const docSnap = await getDoc(docRef);
+    let existingData = docSnap.exists() ? docSnap.data() : {};
+
+    // Check if busPlate exists in the document
+    const busPlateExists = existingData.busPlate !== undefined;
+
+    // Construct feedback data
+    const feedbackData = {
+      busConditionPollution: {
+        conditionRating,
+        ratingReason,
+        pollutionIssues: {
+          excessiveSmoke: pollutionIssues.excessiveSmoke || "None",
+          loudSilencer: pollutionIssues.loudNoise || "None",
+          excessiveHorn: pollutionIssues.excessiveHorn || "None",
+        },
+        
+      },
+      timestamp: new Date().toISOString(), // Adding timestamp
+    };
+
+    // Only add busPlate if it's not already present
+    if (!busPlateExists) {
+      feedbackData.busPlate = numberPlate;
+    }
 
     if (docSnap.exists()) {
-      // If the document exists, update it
+      // Update existing document
       await setDoc(docRef, feedbackData, { merge: true });
       console.log("Feedback updated successfully.");
     } else {
-      // If the document does not exist, create it
+      // Create new document
       await setDoc(docRef, feedbackData);
       console.log("Feedback submitted successfully.");
     }
