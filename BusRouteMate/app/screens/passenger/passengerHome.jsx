@@ -10,7 +10,7 @@ const PassengerHome = () => {
         <Text style={styles.heading}>Welcome to Bus Route Mate</Text>
         {/* <Text style={styles.subheading}>Select User Category</Text> */}
         {/* Full-width Card 1 */}
-        <Card style={styles.card} onPress={() => router.push('screens/owner/addRegisterDriverBusScreen1')}>
+        <Card style={styles.card} onPress={() => router.push('screens/passenger/searchViewBusRoutes')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Check and Track Bus"/>
         </Card>
 

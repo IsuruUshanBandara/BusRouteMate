@@ -75,7 +75,8 @@ const AddRegisterDriverBusScreen1 = () => {
         // Create the bus document inside the buses collection with the license plate number
         await setDoc(busRef, { licencePlateNum: normalizedPlateNum }, { merge: true });
 
-        const routesCollectionRef = collection(db, `privateOwners/${normalizedPhoneNum}/routes`);
+        // const routesCollectionRef = collection(db, `privateOwners/${normalizedPhoneNum}/routes`);
+        const routesCollectionRef = collection(db, `routes`);
         
         // Save each route to Firestore with an auto-generated document ID
         for (const route of routes) {

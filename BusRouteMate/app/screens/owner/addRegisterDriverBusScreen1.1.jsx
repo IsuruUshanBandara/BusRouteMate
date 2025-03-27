@@ -240,8 +240,8 @@ const AddRegisterDriverBusScreen1 = () => {
     const handleSubmit = async () => {
         try {
             // Create a reference to the routes collection in Firestore
-            const routesCollectionRef = collection(db, `privateOwners/${ownerPhoneNumber}/routes`);
-            
+            // const routesCollectionRef = collection(db, `privateOwners/${ownerPhoneNumber}/routes`);
+            const routesCollectionRef = collection(db, `routes`);
             const finalRoutes = [...routeData, {
                 routeNum: parsedBusData[currentRouteIndex].routeNum,
                 origin,
@@ -250,32 +250,32 @@ const AddRegisterDriverBusScreen1 = () => {
                 busRoute: parsedBusData[currentRouteIndex].busRoute,
             }];
 
-            // Save each route to Firestore
-            for (const route of finalRoutes) {
-                const routeDocRef = doc(routesCollectionRef, `${plateNum}-${route.busRoute}`);
+            // // Save each route to Firestore
+            // for (const route of finalRoutes) {
+            //     const routeDocRef = doc(routesCollectionRef, `${plateNum}-${route.busRoute}`);
     
-                // Check if the document exists to either create it (setDoc) or update it (updateDoc)
-                const docSnapshot = await getDoc(routeDocRef);
-                if (docSnapshot.exists()) {
-                    // Update the document with new fields (does not overwrite)
-                    await updateDoc(routeDocRef, {
-                        origin: route.origin,
-                        destination: route.destination,
-                        passingCities: route.passingCities, // This is an array
-                    });
-                } else {
-                    // If the document does not exist, create it
-                    await setDoc(routeDocRef, {
-                        routeNum: route.routeNum,
-                        routeName: route.busRoute,
-                        origin: route.origin,
-                        destination: route.destination,
-                        passingCities: route.passingCities, // This is an array
-                    });
-                }
-            }
+            //     // Check if the document exists to either create it (setDoc) or update it (updateDoc)
+            //     const docSnapshot = await getDoc(routeDocRef);
+            //     if (docSnapshot.exists()) {
+            //         // Update the document with new fields (does not overwrite)
+            //         await updateDoc(routeDocRef, {
+            //             origin: route.origin,
+            //             destination: route.destination,
+            //             passingCities: route.passingCities, // This is an array
+            //         });
+            //     } else {
+            //         // If the document does not exist, create it
+            //         await setDoc(routeDocRef, {
+            //             routeNum: route.routeNum,
+            //             routeName: route.busRoute,
+            //             origin: route.origin,
+            //             destination: route.destination,
+            //             passingCities: route.passingCities, // This is an array
+            //         });
+            //     }
+            // }
 
-            console.log("Data saved successfully to Firestore:");
+            // console.log("Data saved successfully to Firestore:");
             
             router.push({
                 pathname: 'screens/owner/addRegisterDriverBusScreen2',
