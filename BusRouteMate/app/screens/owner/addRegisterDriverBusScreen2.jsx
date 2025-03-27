@@ -271,14 +271,14 @@ const AddRegisterDriverBusScreen2 = () => {
         await setDoc(routeRef, routeData);
 
         // Also save under the owner's collection
-        if (ownerPhoneNumber) {
-          const ownerRouteRef = doc(
-            db, 
-            `privateOwners/${ownerPhoneNumber}/routes`,
-            `${plateNum}-${route.busRoute}`
-          );
-          await setDoc(ownerRouteRef, routeData);
-        }
+        // if (ownerPhoneNumber) {
+        //   const ownerRouteRef = doc(
+        //     db, 
+        //     `privateOwners/${ownerPhoneNumber}/routes`,
+        //     `${plateNum}-${route.busRoute}`
+        //   );
+        //   await setDoc(ownerRouteRef, routeData);
+        // }
       }
 
       Alert.alert("Success", "All routes saved successfully!");
