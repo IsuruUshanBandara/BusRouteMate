@@ -35,8 +35,8 @@ const ViewFeedbackScreen1 = () => {
             const ownerCollection = role === 'privateOwners' ? 'privateOwners' : 'sltbAuthority';
         
             // Step 2: Get all bus plate numbers
-            const testBusDoc = await getDoc(doc(db, ownerCollection, phoneNumber, 'buses', 'KC112'));
-            console.log("KC112 Exists:", testBusDoc.exists());
+            // const testBusDoc = await getDoc(doc(db, ownerCollection, phoneNumber, 'buses', 'KC112'));
+            // console.log("KC112 Exists:", testBusDoc.exists());
             const busesRef = collection(db, ownerCollection, phoneNumber, 'buses');
         
             try {
