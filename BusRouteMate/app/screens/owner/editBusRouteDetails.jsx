@@ -1,288 +1,466 @@
-import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, FlatList, ActivityIndicator } from 'react-native';
+import { 
+  StyleSheet, 
+  View, 
+  ActivityIndicator, 
+  Alert, 
+  KeyboardAvoidingView, 
+  Platform, 
+  TouchableOpacity,
+  TextInput,
+  FlatList,
+  SafeAreaView
+} from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, IconButton } from 'react-native-paper';
+import { Button, IconButton, Text } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../../db/firebaseConfig';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { GOOGLE_MAPS_API_KEY } from '@env';
 
-const GOOGLE_API_KEY = GOOGLE_MAPS_API_KEY;
-
-function InputAutocomplete({ placeholder, value, onPlaceSelected, index = null, zIndexValue = 1 }) {
-  const ref = useRef();
-  const [isFocused, setIsFocused] = useState(false);
-
-  useEffect(() => {
-    if (value === '' && ref.current) {
-      ref.current.clear();
-    }
-  }, [value]);
-
-  return (
-    <View style={{ 
-      zIndex: zIndexValue,
-      elevation: zIndexValue,
-      marginVertical: 10,
-      position: 'relative',
-    }}>
-      <GooglePlacesAutocomplete
-        ref={ref}
-        styles={{
-          container: { flex: 0 },
-          textInput: styles.input,
-          listView: {
-            position: 'absolute',
-            top: 50,
-            left: 0,
-            right: 0,
-            backgroundColor: 'white',
-            zIndex: 9999,
-            elevation: 9999,
-            borderWidth: 1,
-            borderColor: '#ddd',
-            borderRadius: 5,
-          },
-          row: { padding: 13, height: 44, flexDirection: 'row' },
-          separator: { height: 0.5, backgroundColor: '#c8c7cc' },
-        }}
-        placeholder={placeholder || ""}
-        fetchDetails
-        onPress={(data, details = null) => {
-          const cityName = details?.name || data.description;
-          onPlaceSelected(cityName, index);
-          setIsFocused(false);
-        }}
-        query={{ key: GOOGLE_API_KEY, language: "en" }}
-        textInputProps={{
-          defaultValue: value,
-          onFocus: () => setIsFocused(true),
-          onBlur: () => setIsFocused(false),
-        }}
-        enablePoweredByContainer={false}
-        keyboardShouldPersistTaps="handled"
-        listViewDisplayed={isFocused}
-        disableScroll={true}
-      />
-    </View>
-  );
-}
-
 const EditBusRouteDetails = () => {
-  const { plateNumber, currentRoute, routeDocId } = useLocalSearchParams();
   const router = useRouter();
-  
-  const [loading, setLoading] = useState(true);
-  const [routeData, setRouteData] = useState(null);
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('');
-  const [passingCities, setPassingCities] = useState(['']);
+  const { plateNumber, routeDocId } = useLocalSearchParams();
+  const [isLoading, setIsLoading] = useState(true);
+  const [routeData, setRouteData] = useState({
+    routeName: '',
+    routeNum: '',
+    origin: { name: '', placeId: '' },
+    destination: { name: '', placeId: '' },
+    passingCities: [],
+  });
+  const [showSaveButton, setShowSaveButton] = useState(false);
+  const [editingCity, setEditingCity] = useState(null);
+  const [cityInputText, setCityInputText] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const cityInputRefs = useRef([]);
+  const timeoutRef = useRef(null);
   const [formElements, setFormElements] = useState([]);
 
   useEffect(() => {
-    const fetchRouteData = async () => {
+    const fetchRouteDetails = async () => {
       try {
-        const routeRef = doc(db, 'routes', routeDocId);
-        const routeSnap = await getDoc(routeRef);
+        setIsLoading(true);
+        const routeDocRef = doc(db, 'routes', routeDocId);
+        const routeDocSnap = await getDoc(routeDocRef);
         
-        if (routeSnap.exists()) {
-          const data = routeSnap.data();
-          setRouteData(data);
-          
-          // Extract origin (first city) and destination (last city)
-          if (data.passingCities && data.passingCities.length > 0) {
-            setOrigin(data.passingCities[0].name || '');
-            setDestination(data.passingCities[data.passingCities.length - 1].name || '');
-            
-            // Extract passing cities (middle cities)
-            if (data.passingCities.length > 2) {
-              setPassingCities(data.passingCities.slice(1, -1).map(city => city.name));
-            } else {
-              setPassingCities(['']);
-            }
-          }
+        if (routeDocSnap.exists()) {
+          const data = routeDocSnap.data();
+          setRouteData({
+            routeName: data.routeName || data.busRoute || '',
+            routeNum: data.routeNum || '',
+            origin: {
+              name: data.origin?.name || '',
+              placeId: data.origin?.placeId || ''
+            },
+            destination: {
+              name: data.destination?.name || '',
+              placeId: data.destination?.placeId || ''
+            },
+            passingCities: data.passingCities?.map(city => ({
+              name: city.name || '',
+              placeId: city.placeId || ''
+            })) || []
+          });
+        } else {
+          Alert.alert('Error', 'Route not found');
+          router.back();
         }
       } catch (error) {
-        console.error("Error fetching route data:", error);
+        console.error('Error fetching route details:', error);
+        Alert.alert('Error', 'Failed to fetch route details');
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
-    const unsubscribe = onAuthStateChanged(auth, user => {
-      if (user) {
-        fetchRouteData();
-      } else {
-        router.push('../../(auth)/owner/privateSignIn');
-      }
-    });
-
-    return unsubscribe;
+    fetchRouteDetails();
   }, [routeDocId]);
 
+  // Ensure refs array is updated when passingCities change
   useEffect(() => {
-    if (!routeData) return;
+    cityInputRefs.current = Array(routeData.passingCities.length).fill(null);
+  }, [routeData.passingCities.length]);
 
+  // Prepare form elements for FlatList
+  useEffect(() => {
+    if (isLoading) return;
+    
     const elements = [];
     
+    // Add header
     elements.push({
       type: 'header',
       id: 'header',
-      routeNum: routeData.routeNum || ''
     });
     
+    // Add bus info
+    elements.push({
+      type: 'busInfo',
+      id: 'busInfo',
+    });
+    
+    // Add origin
     elements.push({
       type: 'origin',
       id: 'origin',
-      value: origin
     });
     
-    passingCities.forEach((city, index) => {
+    // Add passing cities
+    routeData.passingCities.forEach((city, index) => {
       elements.push({
         type: 'passingCity',
         id: `passingCity-${index}`,
-        value: city,
-        index: index
+        index: index,
+        city: city,
       });
     });
     
-    elements.push({
-      type: 'destination',
-      id: 'destination',
-      value: destination
-    });
+    // Add Add City button if no cities
+    if (routeData.passingCities.length === 0) {
+      elements.push({
+        type: 'emptyCities',
+        id: 'emptyCities',
+      });
+    }
     
-    elements.push({
-      type: 'buttons',
-      id: 'buttons'
-    });
+    // Add destination - add this ONLY when no city is being edited
+    if (editingCity === null) {
+      elements.push({
+        type: 'destination',
+        id: 'destination',
+      });
+    }
+    
+    // Add save button
+    if (showSaveButton) {
+      elements.push({
+        type: 'saveButton',
+        id: 'saveButton',
+      });
+    }
     
     setFormElements(elements);
-  }, [routeData, origin, destination, passingCities]);
+  }, [routeData, showSaveButton, isLoading, editingCity]);
 
-  const addPassingCity = () => {
-    setPassingCities([...passingCities, '']);
-  };
-
-  const updatePassingCity = (text, index) => {
-    const updatedCities = [...passingCities];
-    updatedCities[index] = text;
-    setPassingCities(updatedCities);
-  };
-
-  const removePassingCity = (index) => {
-    if (index > 0) {
-      setPassingCities(prev => prev.filter((_, i) => i !== index));
-    }
-  };
-
-  const handleSubmit = async () => {
+  const handleSaveRoute = async () => {
     try {
-      const updatedPassingCities = [origin, ...passingCities, destination];
+      setIsLoading(true);
       
-      // Prepare updated route data
-      const updatedData = {
-        ...routeData,
-        origin: {
-          name: origin,
-          // Keep existing coordinates if available
-          latitude: routeData.origin?.latitude || null,
-          longitude: routeData.origin?.longitude || null
-        },
-        destination: {
-          name: destination,
-          latitude: routeData.destination?.latitude || null,
-          longitude: routeData.destination?.longitude || null
-        },
-        passingCities: updatedPassingCities.map((city, index) => ({
-          name: city,
-          // Keep existing coordinates if available
-          latitude: routeData.passingCities?.[index]?.latitude || null,
-          longitude: routeData.passingCities?.[index]?.longitude || null
-        }))
+      const updateData = {
+        passingCities: routeData.passingCities
+          .filter(city => city.name)
+          .map(city => ({
+            name: city.name,
+            placeId: city.placeId
+          })),
+        updatedAt: new Date().toISOString()
       };
 
-      // Update in Firestore
-      const routeRef = doc(db, 'routes', routeDocId);
-      await updateDoc(routeRef, updatedData);
-
-      Alert.alert("Success", "Route updated successfully!");
-      router.back();
+      await updateDoc(doc(db, 'routes', routeDocId), updateData);
+      
+      router.push({
+        pathname: 'screens/owner/editBusRouteMap',
+        params: {
+          plateNumber,
+          routeDocId,
+          routeName: routeData.routeName,
+          routeNum: routeData.routeNum,
+          origin: routeData.origin.name,
+          originPlaceId: routeData.origin.placeId,
+          destination: routeData.destination.name,
+          destinationPlaceId: routeData.destination.placeId,
+          passingCities: JSON.stringify(routeData.passingCities)
+        }
+      });
     } catch (error) {
-      console.error("Error updating route:", error);
-      Alert.alert("Error", "Failed to update route");
+      console.error('Error updating route:', error);
+      Alert.alert('Error', error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  if (loading) {
+  const handleDeleteRoute = async () => {
+    try {
+      Alert.alert(
+        'Confirm Delete',
+        'Are you sure you want to delete this route?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              await deleteDoc(doc(db, 'routes', routeDocId));
+              router.replace('/screens/owner/manageBuses');
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error deleting route:', error);
+      Alert.alert('Error', 'Failed to delete route');
+    }
+  };
+
+  const handleAddPassingCity = () => {
+    setRouteData(prev => ({
+      ...prev,
+      passingCities: [...prev.passingCities, { name: '', placeId: '' }]
+    }));
+    // Set the new city as the editing city
+    setTimeout(() => {
+      setEditingCity(routeData.passingCities.length);
+      setCityInputText('');
+    }, 100);
+  };
+
+  const handleRemovePassingCity = (index) => {
+    if (editingCity === index) {
+      setEditingCity(null);
+      setSuggestions([]);
+    }
+    
+    setRouteData(prev => ({
+      ...prev,
+      passingCities: prev.passingCities.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleStartEditCity = (index) => {
+    setEditingCity(index);
+    setCityInputText(routeData.passingCities[index].name);
+    setTimeout(() => {
+      if (cityInputRefs.current[index]) {
+        cityInputRefs.current[index].focus();
+      }
+    }, 100);
+  };
+
+  const handleCityInputChange = async (text) => {
+    setCityInputText(text);
+    
+    // Clear previous timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    // Set new timeout for API call
+    timeoutRef.current = setTimeout(async () => {
+      if (text.length > 1) {
+        try {
+          const response = await fetch(
+            `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${text}&types=(cities)&key=${GOOGLE_MAPS_API_KEY}`
+          );
+          const data = await response.json();
+          if (data.predictions) {
+            setSuggestions(data.predictions);
+          }
+        } catch (error) {
+          console.error('Error fetching suggestions:', error);
+        }
+      } else {
+        setSuggestions([]);
+      }
+    }, 300);
+  };
+
+  const handleSelectCity = (suggestion) => {
+    if (editingCity !== null) {
+      const updatedCities = [...routeData.passingCities];
+      updatedCities[editingCity] = {
+        name: suggestion.description,
+        placeId: suggestion.place_id
+      };
+      
+      setRouteData(prev => ({ ...prev, passingCities: updatedCities }));
+      
+      // Clear suggestions first then clear editing state
+      setSuggestions([]);
+      setTimeout(() => {
+        setEditingCity(null);
+      }, 100);
+    }
+  };
+
+  const handleBlurCityInput = () => {
+    // Small delay to allow for suggestion selection
+    setTimeout(() => {
+      setSuggestions([]);
+      if (editingCity !== null && cityInputText.trim() === '') {
+        // If they left the input empty, remove the city
+        handleRemovePassingCity(editingCity);
+      } else if (editingCity !== null) {
+        // If they typed something but didn't select a suggestion, keep their text
+        const updatedCities = [...routeData.passingCities];
+        if (cityInputText !== updatedCities[editingCity].name) {
+          updatedCities[editingCity] = {
+            name: cityInputText,
+            placeId: updatedCities[editingCity].placeId || ''
+          };
+          setRouteData(prev => ({ ...prev, passingCities: updatedCities }));
+        }
+        setEditingCity(null);
+      }
+    }, 200);
+  };
+
+  useEffect(() => {
+    setShowSaveButton(
+      routeData.passingCities.length > 0 &&
+      routeData.passingCities.every(city => city.name.trim() !== '')
+    );
+  }, [routeData.passingCities]);
+
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#0066cc" />
+        <Text style={styles.loadingText}>Loading route details...</Text>
       </View>
     );
   }
 
+  // Render different types of items for the FlatList
   const renderItem = ({ item }) => {
     switch (item.type) {
       case 'header':
         return (
-          <View style={styles.subHeadingContainer}>
-            <Text style={styles.subHeading}>
-              Edit Route {item.routeNum} for Bus {plateNumber}
-            </Text>
+          <View style={styles.headerContainer}>
+            <IconButton
+              icon="arrow-left"
+              size={24}
+              onPress={() => router.back()}
+            />
+            <Text style={styles.heading}>Edit Passing Cities</Text>
+            <IconButton
+              icon="delete"
+              size={24}
+              color="#f44336"
+              onPress={handleDeleteRoute}
+            />
+          </View>
+        );
+      case 'busInfo':
+        return (
+          <View style={styles.busInfoContainer}>
+            <Text style={styles.busInfoText}>Bus: {plateNumber}</Text>
+            <Text style={styles.busInfoText}>Route: {routeData.routeName} (Route {routeData.routeNum})</Text>
           </View>
         );
       case 'origin':
         return (
-          <InputAutocomplete
-            placeholder="Origin"
-            value={item.value}
-            onPlaceSelected={(text) => setOrigin(text)}
-            zIndexValue={3000}
-          />
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Origin</Text>
+            <View style={styles.displayField}>
+              <Text style={styles.displayText} numberOfLines={2} ellipsizeMode="tail">{routeData.origin.name}</Text>
+            </View>
+          </View>
         );
       case 'passingCity':
+        const index = item.index;
+        const city = item.city;
+        
+        // Calculate dynamic z-index to ensure proper stacking
+        const zIndexValue = editingCity === index ? 9999 : (1000 - index);
+        
         return (
-          <View style={styles.cityContainer}>
-            <View style={{ flex: 1 }}>
-              <InputAutocomplete
-                placeholder={`In-Between City ${item.index + 1}`}
-                value={item.value}
-                onPlaceSelected={(text) => updatePassingCity(text, item.index)}
-                index={item.index}
-                zIndexValue={2000 - (item.index * 10)}
-              />
-            </View>
-            {item.index > 0 && (
+          <View key={`city-${index}`} style={[styles.inputContainer, { zIndex: zIndexValue }]}>
+            <View style={styles.passingCityRow}>
+              <View style={styles.passingCityLabelContainer}>
+                <Text style={styles.passingCityLabel}>City {index + 1}</Text>
+              </View>
               <IconButton
-                icon="delete"
+                icon="pencil"
                 size={20}
-                onPress={() => removePassingCity(item.index)}
+                onPress={() => handleStartEditCity(index)}
+                style={styles.editIcon}
+              />
+              <IconButton
+                icon="close"
+                size={20}
+                onPress={() => handleRemovePassingCity(index)}
                 style={styles.deleteIcon}
               />
+            </View>
+            
+            {editingCity === index ? (
+              <View style={[styles.editingContainer, { zIndex: zIndexValue }]}>
+                <TextInput
+                  ref={ref => cityInputRefs.current[index] = ref}
+                  style={styles.cityInput}
+                  value={cityInputText}
+                  onChangeText={handleCityInputChange}
+                  placeholder="Enter city name"
+                  autoFocus={true}
+                  onBlur={handleBlurCityInput}
+                />
+                {suggestions.length > 0 && (
+                  <View style={styles.suggestionsContainer}>
+                    {suggestions.map((suggestion) => (
+                      <TouchableOpacity
+                        key={suggestion.place_id}
+                        style={styles.suggestionItem}
+                        onPress={() => handleSelectCity(suggestion)}
+                      >
+                        <Text style={styles.suggestionText}>{suggestion.description}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={styles.displayField}
+                onPress={() => handleStartEditCity(index)}
+              >
+                <Text style={styles.displayText} numberOfLines={2} ellipsizeMode="tail">{city.name}</Text>
+              </TouchableOpacity>
             )}
           </View>
         );
+      case 'sectionHeader':
+        return (
+          <View style={styles.sectionHeader}>
+            <Text style={styles.label}>In-Between Cities</Text>
+            <TouchableOpacity onPress={handleAddPassingCity}>
+              <Text style={styles.addButton}>+ Add City</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      case 'emptyCities':
+        return (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.label}>In-Between Cities</Text>
+              <TouchableOpacity onPress={handleAddPassingCity}>
+                <Text style={styles.addButton}>+ Add City</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.emptyCitiesContainer}>
+              <Text style={styles.emptyCitiesText}>No passing cities added yet. Tap "+ Add City" to get started.</Text>
+            </View>
+          </>
+        );
       case 'destination':
         return (
-          <InputAutocomplete
-            placeholder="Destination"
-            value={item.value}
-            onPlaceSelected={(text) => setDestination(text)}
-            zIndexValue={1000}
-          />
-        );
-      case 'buttons':
-        return (
-          <View style={styles.buttonContainer}>
-            <Button mode="contained" style={styles.addButton} onPress={addPassingCity}>
-              Add In-Between City
-            </Button>
-            <Button mode="contained" style={styles.submitButton} onPress={handleSubmit}>
-              Save Changes
-            </Button>
+          <View style={[styles.inputContainer, { zIndex: 1 }]}>
+            <Text style={styles.label}>Destination</Text>
+            <View style={styles.displayField}>
+              <Text style={styles.displayText} numberOfLines={2} ellipsizeMode="tail">{routeData.destination.name}</Text>
+            </View>
           </View>
+        );
+      case 'saveButton':
+        return (
+          <Button
+            mode="contained"
+            onPress={handleSaveRoute}
+            style={styles.saveButton}
+            loading={isLoading}
+          >
+            Continue to Map
+          </Button>
         );
       default:
         return null;
@@ -291,10 +469,10 @@ const EditBusRouteDetails = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        style={styles.container} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : null}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+        style={styles.container}
       >
         <FlatList
           data={formElements}
@@ -303,8 +481,27 @@ const EditBusRouteDetails = () => {
           contentContainerStyle={styles.contentContainer}
           keyboardShouldPersistTaps="handled"
           removeClippedSubviews={false}
-          ListFooterComponent={<View style={{ height: 100 }} />}
+          ListFooterComponent={
+            // Add destination at the bottom if a city is being edited
+            editingCity !== null ? (
+              <View style={[styles.inputContainer, { zIndex: 1, marginTop: 150 }]}>
+                <Text style={styles.label}>Destination</Text>
+                <View style={styles.displayField}>
+                  <Text style={styles.displayText} numberOfLines={2} ellipsizeMode="tail">{routeData.destination.name}</Text>
+                </View>
+              </View>
+            ) : <View style={{ height: 100 }} />
+          }
         />
+        
+        {routeData.passingCities.length > 0 && (
+          <TouchableOpacity 
+            style={styles.floatingAddButton} 
+            onPress={handleAddPassingCity}
+          >
+            <Text style={styles.floatingAddButtonText}>+ Add City</Text>
+          </TouchableOpacity>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -313,58 +510,173 @@ const EditBusRouteDetails = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f5f5f5',
   },
   contentContainer: {
-    paddingHorizontal: '5%',
-    paddingTop: '5%',
+    padding: 16,
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  heading: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginLeft: 10,
+    flex: 1,
+  },
+  busInfoContainer: {
+    backgroundColor: '#e3f2fd',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  busInfoText: {
+    fontSize: 16,
+    color: '#1976d2',
+  },
+  inputContainer: {
+    marginBottom: 16,
+    position: 'relative',
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 8,
+    color: '#333',
+  },
+  displayField: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    minHeight: 50,
+    justifyContent: 'center',
+  },
+  displayText: {
+    fontSize: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  addButton: {
+    color: '#1976d2',
+    fontWeight: '500',
+    fontSize: 16,
+  },
+  passingCityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  passingCityLabelContainer: {
+    flex: 1,
+  },
+  passingCityLabel: {
+    fontSize: 14,
+    color: '#555',
+    fontWeight: '500',
+  },
+  editIcon: {
+    marginLeft: 'auto',
+    marginRight: 0,
+  },
+  deleteIcon: {
+    marginLeft: 0,
+    marginRight: 0,
+  },
+  citiesList: {
+    marginBottom: 16,
+  },
+  editingContainer: {
+    position: 'relative',
+  },
+  cityInput: {
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#1976d2',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  suggestionsContainer: {
+    position: 'absolute',
+    top: 52,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    maxHeight: 200,
+    elevation: 5, // For Android
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  suggestionItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  suggestionText: {
+    fontSize: 16,
+  },
+  saveButton: {
+    marginTop: 24,
+    marginBottom: 16,
+    paddingVertical: 8,
+    backgroundColor: '#1976d2',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  subHeadingContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 20,
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
   },
-  subHeading: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  input: {
-    height: 50,
-    borderColor: '#ccc',
+  emptyCitiesContainer: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
     borderWidth: 1,
-    borderRadius: 5,
-    paddingLeft: 10,
-    marginBottom: 10,
-    backgroundColor: 'white',
-  },
-  cityContainer: {
-    flexDirection: 'row',
+    borderColor: '#ddd',
+    marginBottom: 16,
     alignItems: 'center',
-    position: 'relative',
   },
-  deleteIcon: {
-    marginLeft: 5,
+  emptyCitiesText: {
+    color: '#757575',
+    textAlign: 'center',
+    fontSize: 16,
   },
-  buttonContainer: {
-    zIndex: 1,
-    marginTop: 20,
+  floatingAddButton: {
+    backgroundColor: '#1976d2',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 30,
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    zIndex: 10,
   },
-  addButton: {
-    marginTop: 10,
-    paddingVertical: 6,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  submitButton: {
-    marginTop: 20,
-    paddingVertical: 6,
-    width: '100%',
-    alignSelf: 'center',
+  floatingAddButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
 
