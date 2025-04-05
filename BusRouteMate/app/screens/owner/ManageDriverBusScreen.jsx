@@ -131,12 +131,12 @@ const ManageBusesScreen = () => {
 
   const handleEdit = (plateNumber, routeName, routeDocId) => {
     router.push({
-      pathname: 'screens/owner/editBusRouteScreen',
-      params: { 
-        plateNumber: plateNumber,
-        currentRoute: routeName,
-        routeDocId: routeDocId
-      }
+        pathname: 'screens/owner/editDriverBusOptionSelectionScreen',
+        params: { 
+          plateNumber: plateNumber,
+          currentRoute: routeName,
+          routeDocId: routeDocId
+        }
     });
   };
 

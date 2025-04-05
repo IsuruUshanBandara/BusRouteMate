@@ -11,6 +11,7 @@ import { fetchSignInMethodsForEmail } from 'firebase/auth';
 const AddRegisterDriverBusScreen3 = () => {
     const { plateNum } = useLocalSearchParams();
     const router = useRouter();
+    const parsedPlateNum = plateNum ? JSON.parse(plateNum) : '';
     
     const [drivers, setDrivers] = useState([{ 
         phoneNum: '', 
@@ -53,8 +54,7 @@ const AddRegisterDriverBusScreen3 = () => {
             const emailExists = methods.length > 0;
     
             // Then check if already registered for this specific bus
-            const docId = `${plateNum}-${email}`;
-            const docRef = doc(db, 'driverDetails', docId);
+            const docRef = doc(db, 'driverDetails', `${parsedPlateNum}-${email}`);
             const docSnap = await getDoc(docRef);
             const registeredForBus = docSnap.exists();
     
@@ -125,12 +125,11 @@ const AddRegisterDriverBusScreen3 = () => {
                 }
 
                 // Check if document already exists
-                const docId = `${plateNum}-${driver.email}`;
-                const driverDocRef = doc(db, 'driverDetails', docId);
+                const driverDocRef = doc(db, 'driverDetails', `${parsedPlateNum}-${driver.email}`);
                 const docSnapshot = await getDoc(driverDocRef);
                 
                 if (docSnapshot.exists()) {
-                    Alert.alert("Error", `Driver ${driver.email} is already registered for bus ${plateNum}`);
+                    Alert.alert("Error", `Driver ${driver.email} is already registered for bus ${parsedPlateNum}`);
                     setLoading(false);
                     return;
                 }
@@ -157,7 +156,7 @@ const AddRegisterDriverBusScreen3 = () => {
 
                 // Only create document if it doesn't exist
                 await setDoc(driverDocRef, {
-                    licencePlateNum: plateNum,
+                    licencePlateNum: parsedPlateNum,
                     driverEmail: driver.email,
                     driverPhone: driver.phoneNum,
                     conductorPhone: driver.conductorPhone,
@@ -185,7 +184,7 @@ const AddRegisterDriverBusScreen3 = () => {
                 <ScrollView contentContainerStyle={styles.scrollContainer}>
                     <View style={styles.centeredContent}>
                         <View style={styles.subHeadingContainer}>
-                            <Text style={styles.subHeading}>Register Driver & Conductor for Bus {plateNum}</Text>
+                            <Text style={styles.subHeading}>Register Driver & Conductor for Bus {parsedPlateNum}</Text>
                         </View>
 
                         {drivers.map((driver, index) => (

@@ -1,9 +1,8 @@
 import { initializeApp,getApp,getApps} from 'firebase/app';
 // import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import { getAuth } from 'firebase/auth';
+import { getAuth,initializeAuth,getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
-import { get } from 'react-native/Libraries/TurboModule/TurboModuleRegistry';
 
 const firebaseConfig = {
   apiKey: "AIzaSyADk3v7kJXBLSPKeQMRgM415D6E1kUcik8",
