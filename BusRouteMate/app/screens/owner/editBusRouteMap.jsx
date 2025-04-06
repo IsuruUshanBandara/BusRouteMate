@@ -40,12 +40,12 @@ const EditBusRouteMap = () => {
         if (routeDocSnap.exists()) {
           const data = routeDocSnap.data();
           
-          // Prepare route data from Firestore
+          // Prepare route data from Firestore using the coordinates array
           const routeData = {
             routeName: data.routeName || data.busRoute || '',
             routeNum: data.routeNum || '',
             origin: {
-              name: data.origin?.name || '',
+              name: data.origin?.name || (data.coordinates?.[0]?.name || ''),
               coordinates: data.origin?.coordinates || 
                 (data.coordinates?.[0] ? { 
                   latitude: data.coordinates[0].latitude, 
@@ -53,57 +53,45 @@ const EditBusRouteMap = () => {
                 } : null)
             },
             destination: {
-              name: data.destination?.name || '',
+              name: data.destination?.name || 
+                (data.coordinates?.length > 0 ? data.coordinates[data.coordinates.length - 1].name : ''),
               coordinates: data.destination?.coordinates || 
-                (data.coordinates?.length > 1 ? { 
+                (data.coordinates?.length > 0 ? { 
                   latitude: data.coordinates[data.coordinates.length - 1].latitude, 
                   longitude: data.coordinates[data.coordinates.length - 1].longitude 
                 } : null)
             },
-            passingCities: data.passingCities?.map(city => ({
-              name: city.name,
-              coordinates: city.coordinates
+            // Passing cities are all coordinates except first and last
+            passingCities: data.coordinates?.slice(1, -1).map(point => ({
+              name: point.name,
+              coordinates: {
+                latitude: point.latitude,
+                longitude: point.longitude
+              }
             })) || [],
             distance: data.distance || 0,
-            duration: data.duration || 0
+            duration: data.duration || 0,
+            coordinates: data.coordinates || [] // Keep the full coordinates array
           };
-
+    
           setRouteData(routeData);
-
-          // Prepare map points
-          const points = [];
-          
-          // Add origin if coordinates exist
-          if (routeData.origin.coordinates) {
-            points.push({
-              ...routeData.origin.coordinates,
-              name: routeData.origin.name,
-              type: 'origin'
-            });
-          }
-
-          // Add passing cities
-          routeData.passingCities.forEach(city => {
-            if (city.coordinates) {
-              points.push({
-                ...city.coordinates,
-                name: city.name,
-                type: 'passing'
-              });
-            }
-          });
-
-          // Add destination if coordinates exist
-          if (routeData.destination.coordinates) {
-            points.push({
-              ...routeData.destination.coordinates,
-              name: routeData.destination.name,
-              type: 'destination'
-            });
-          }
-
+    
+          // Prepare map points directly from coordinates array
+          const points = data.coordinates?.map((point, index) => {
+            let type = 'passing';
+            if (index === 0) type = 'origin';
+            if (index === data.coordinates.length - 1) type = 'destination';
+            
+            return {
+              latitude: point.latitude,
+              longitude: point.longitude,
+              name: point.name,
+              type: type
+            };
+          }) || [];
+    
           setMapPoints(points);
-
+    
           // Fit map to show all points
           if (mapRef.current && points.length > 0) {
             setTimeout(() => {
@@ -142,26 +130,40 @@ const EditBusRouteMap = () => {
     try {
       setIsSaving(true);
       
+      // Reconstruct the coordinates array from mapPoints
+      const coordinates = mapPoints.map(point => ({
+        latitude: point.latitude,
+        longitude: point.longitude,
+        name: point.name
+      }));
+  
       const updateData = {
         routeName: routeData.routeName,
         routeNum: routeData.routeNum,
         origin: {
-          name: routeData.origin.name,
-          coordinates: routeData.origin.coordinates
+          name: mapPoints[0]?.name || routeData.origin.name,
+          coordinates: {
+            latitude: mapPoints[0]?.latitude,
+            longitude: mapPoints[0]?.longitude
+          }
         },
         destination: {
-          name: routeData.destination.name,
-          coordinates: routeData.destination.coordinates
+          name: mapPoints[mapPoints.length - 1]?.name || routeData.destination.name,
+          coordinates: {
+            latitude: mapPoints[mapPoints.length - 1]?.latitude,
+            longitude: mapPoints[mapPoints.length - 1]?.longitude
+          }
         },
-        passingCities: routeData.passingCities.map(city => ({
-          name: city.name,
-          coordinates: city.coordinates
+        // Passing cities are just names (maintaining the existing structure)
+        passingCities: mapPoints.slice(1, -1).map(point => ({
+          name: point.name
         })),
+        coordinates: coordinates, // Save the full coordinates array
         distance: routeData.distance,
         duration: routeData.duration,
         updatedAt: new Date().toISOString()
       };
-
+  
       await updateDoc(doc(db, 'routes', routeDocId), updateData);
       
       Alert.alert(
