@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter,useLocalSearchParams } from 'expo-router';
-
+import { useTranslation } from 'react-i18next';
+// import i18n from './i18n';
 const DriverSignIn = () => {
     const router = useRouter();
     const { category } = useLocalSearchParams();
     const [licensePlateNumber, setLicensePlateNumber] = useState('');
     const [driverPassword, setdriverPassword] = useState('');
     const [showDriverPassword, setShowDriverPassword] = useState(false);
+    const { t } = useTranslation();
 
     const handleSignIn = () => {
         console.log(driverPassword);
@@ -24,11 +26,11 @@ const DriverSignIn = () => {
             >
                 <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
                     <View style={styles.centeredContent}>
-                        <Text style={styles.subHeading}>Sign In</Text>
+                        <Text style={styles.subHeading}>{t('signIn')}</Text>
 
                         <TextInput
                             style={styles.input}
-                            label="License Plate Number"
+                            label={t('plate num')}
                             value={licensePlateNumber}
                             onChangeText={text => setLicensePlateNumber(text)}
                             mode='outlined'
@@ -37,7 +39,7 @@ const DriverSignIn = () => {
 
                         <TextInput
                             style={styles.input}
-                            label="Password"
+                            label={t('Password')}
                             value={driverPassword}
                             onChangeText={text => setdriverPassword(text)}
                             mode='outlined'
@@ -49,7 +51,7 @@ const DriverSignIn = () => {
                                 />
                             }
                         />
-                        <Button mode='contained' style={styles.signInButton} onPress={handleSignIn}>Sign In</Button>
+                        <Button mode='contained' style={styles.signInButton} onPress={handleSignIn}>{t('signIn')}</Button>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>

@@ -1,5 +1,9 @@
 {
     "Select_User_Category": "Select User Category",
     "driver": "Driver",
-    "signIn": "Sign In"
+    "signIn": "Sign In",
+    "owner":"Owner",
+    "passenger":"Passenger",
+    "plate num":"License Plate Number",
+    "Password":"Password"
 }

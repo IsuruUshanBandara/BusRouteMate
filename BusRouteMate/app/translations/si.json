@@ -1,5 +1,21 @@
 {
     "Select_User_Category": "පරිශීලක ප්‍රවර්ගය තෝරන්න",
     "driver": "රියදුරු",
-    "signIn": "ඇතුල් වන්න"
+    "signIn": "ඇතුල් වන්න",
+    "owner":"බස් අයිතිකරු",
+    "passenger":"බස් මගී",
+    "plate num":"වාහන ලියාපදිංචි අංකය",
+    "Password":"මුරපදය",
+    "email":"ඊ-මේල්",
+    "create account":"ලියාපදිංචි වන්න",
+    "forgot password":"මුරපදය අමතකද?"
 }
+
+
+    
+    
+    
+    
+    
+   
+    

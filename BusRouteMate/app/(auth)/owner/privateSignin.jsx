@@ -42,7 +42,7 @@ const PrivateBusSignIn = () => {
 
                         <TextInput
                             style={styles.input}
-                            label="Email"
+                            label={t('email')}
                             value={email}
                             onChangeText={text => setEmail(text)}
                             mode='outlined'
@@ -50,7 +50,7 @@ const PrivateBusSignIn = () => {
 
                         <TextInput
                             style={styles.input}
-                            label="Password"
+                            label={t('Password')}
                             value={password}
                             onChangeText={text => setPassword(text)}
                             mode='outlined'
@@ -63,10 +63,10 @@ const PrivateBusSignIn = () => {
                             }
                         />
                         <TouchableOpacity onPress={() => router.push('owner/privateForgotPassword')}>
-                            <Text style={styles.forgotPassword}>Forgot Password?</Text>
+                            <Text style={styles.forgotPassword}>{t('forgot password')}</Text>
                         </TouchableOpacity>
-                        <Button mode='contained' style={styles.signInButton} onPress={handleSignIn}>Sign In</Button>
-                        <Button mode='contained' style={styles.createAccountButton} onPress={() => router.push('owner/privateSignUp')}>Create Account</Button>
+                        <Button mode='contained' style={styles.signInButton} onPress={handleSignIn}>{t('signIn')}</Button>
+                        <Button mode='contained' style={styles.createAccountButton} onPress={() => router.push('owner/privateSignUp')}>{t('create account')}</Button>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
