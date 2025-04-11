@@ -3,21 +3,33 @@ import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platfor
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter,useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { auth } from '../../db/firebaseConfig';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 // import i18n from './i18n';
 const DriverSignIn = () => {
     const router = useRouter();
     const { category } = useLocalSearchParams();
     const [licensePlateNumber, setLicensePlateNumber] = useState('');
+    const [email, setEmail] = useState('');
     const [driverPassword, setdriverPassword] = useState('');
     const [showDriverPassword, setShowDriverPassword] = useState(false);
     const { t } = useTranslation();
 
     const handleSignIn = () => {
-        console.log(driverPassword);
-        console.log(licensePlateNumber);
-        router.push('../../screens/driver/driverRideStartCancelScreen');
-    };
+        if (!email || !licensePlateNumber || !driverPassword) {
+            console.error('All fields are required.');
+            return;
+        }
 
+        signInWithEmailAndPassword(auth, email, driverPassword)
+            .then((userCredential) => { 
+                const user = userCredential.user;
+                console.log("Driver signed in successfully:", user);
+                router.push('../../screens/driver/driverRideStartCancelScreen');
+            }).catch((error) => {
+                console.error("Error signing in driver:", error.message);
+            });
+    };
     return (
         <SafeAreaView style={styles.container}>
             <KeyboardAvoidingView 
@@ -35,6 +47,16 @@ const DriverSignIn = () => {
                             onChangeText={text => setLicensePlateNumber(text)}
                             mode='outlined'
                             keyboardType='phone-pad'
+                        />
+                        
+                          <TextInput
+                            style={styles.input}
+                            label={t('email')}
+                            value={email}
+                            onChangeText={text => setEmail(text)}
+                            mode='outlined'
+                            keyboardType='email-address'
+                            autoCapitalize='none'
                         />
 
                         <TextInput
