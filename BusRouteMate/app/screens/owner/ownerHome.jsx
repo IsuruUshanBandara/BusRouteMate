@@ -43,7 +43,7 @@ const OwnerHome = () => {
         </Card>
 
         {/* Full-width Card 3 */}
-        <Card style={styles.card} onPress={() => router.push('screens/driver/rideTrackingScreen')}>
+        <Card style={styles.card} onPress={() => router.push('screens/owner/rideStartedBusListScreen')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Track Bus"/>
         </Card>
 

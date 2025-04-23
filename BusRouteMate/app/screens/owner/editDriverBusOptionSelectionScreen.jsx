@@ -34,12 +34,12 @@ const EditBusOptionsScreen = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.headerContainer}>
-          <IconButton
+          {/* <IconButton
             icon="arrow-left"
             size={24}
             onPress={() => router.back()}
             style={styles.backButton}
-          />
+          /> */}
           <Text style={styles.heading}>Select What to Edit</Text>
         </View>
 

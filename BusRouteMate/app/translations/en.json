@@ -5,5 +5,8 @@
     "owner":"Owner",
     "passenger":"Passenger",
     "plate num":"License Plate Number",
-    "Password":"Password"
+    "Password":"Password",
+    "email":"Email",
+    "create account":"Create Account",
+    "forgot password":"Forgot Password?"
 }

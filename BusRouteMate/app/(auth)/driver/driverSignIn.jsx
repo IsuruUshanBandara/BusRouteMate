@@ -25,7 +25,8 @@ const DriverSignIn = () => {
             .then((userCredential) => { 
                 const user = userCredential.user;
                 console.log("Driver signed in successfully:", user);
-                router.push('../../screens/driver/driverRideStartCancelScreen');
+                router.push({ pathname:'../../screens/driver/driverRideStartCancelScreen',params: { licensePlateNumber: licensePlateNumber }});
+                
             }).catch((error) => {
                 console.error("Error signing in driver:", error.message);
             });
@@ -46,9 +47,9 @@ const DriverSignIn = () => {
                             value={licensePlateNumber}
                             onChangeText={text => setLicensePlateNumber(text)}
                             mode='outlined'
-                            keyboardType='phone-pad'
+                            keyboardType='default'
                         />
-                        
+
                           <TextInput
                             style={styles.input}
                             label={t('email')}
