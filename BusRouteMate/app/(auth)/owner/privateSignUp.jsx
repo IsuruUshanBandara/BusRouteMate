@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import {createUserWithEmailAndPassword} from 'firebase/auth';  
 import {auth,db} from'../../db/firebaseConfig'; 
 import { doc,setDoc } from 'firebase/firestore';
-
+import { useTranslation } from 'react-i18next';
 const PrivateBusSignUp = () => {
     const router = useRouter();
     const [email, setEmail] = useState('');
@@ -16,7 +16,7 @@ const PrivateBusSignUp = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     // const auth = getAuth();
-
+    const { t } = useTranslation();
     const handleSignUp = async () => {
         if (!email || !phoneNumber || !nationalIdentityNum || !password || !confirmPassword) {
             console.error('All fields are required.');
@@ -34,6 +34,7 @@ const PrivateBusSignUp = () => {
             email:email,
             phoneNumber:phoneNumber,
             nationalId:nationalIdentityNum,
+            role:"privateOwners",
             createdAt: new Date()
         });
         console.log("User created successfully:", user);
@@ -52,12 +53,12 @@ const PrivateBusSignUp = () => {
                 <ScrollView contentContainerStyle={styles.scrollContainer}>
                     <View style={styles.centeredContent}>
                         <View style={styles.subHeadingContainer}>
-                            <Text style={styles.subHeading}>Sign Up</Text>
+                            <Text style={styles.subHeading}>{t('signUp')}</Text>
                         </View>
 
                         <TextInput 
                             style={styles.input}
-                            label="Email"
+                            label={t('email')}
                             value={email}
                             onChangeText={text => setEmail(text)}
                             mode="outlined"
@@ -82,7 +83,7 @@ const PrivateBusSignUp = () => {
 
                         <TextInput 
                             style={styles.input}
-                            label="Password"
+                            label={t('Password')}
                             value={password}
                             onChangeText={text => setPassword(text)}
                             mode="outlined"

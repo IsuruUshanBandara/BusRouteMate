@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { StyleSheet, ScrollView, View, TouchableOpacity } from 'react-native';
 import { Text, Title, Subheading, TextInput, Button, Checkbox, RadioButton } from 'react-native-paper';
-
+// import { getAuth } from 'firebase/auth';
+import {doc,setDoc,getDoc } from 'firebase/firestore';
+import {auth,db} from'../../db/firebaseConfig';
 const StarRating = ({ maxStars = 5, rating, setRating }) => {
   return (
     <View style={styles.starContainer}>
@@ -17,8 +19,8 @@ const StarRating = ({ maxStars = 5, rating, setRating }) => {
 };
 
 const BusConditionPollutionFeedback = () => {
-  const [satisfactionRating, setSatisfactionRating] = useState(0);
-  const [suggestion, setSuggestion] = useState('');
+  const [conditionRating, setConditionRating] = useState(0);
+  const [ratingReason, setRatingReason] = useState('');
   const [numberPlate, setNumberPlate] = useState('');
   const [checkboxState, setCheckboxState] = useState({
     excessiveSmoke: false,
@@ -26,7 +28,7 @@ const BusConditionPollutionFeedback = () => {
     excessiveHorn: false,
     none: false,
   });
-  const [severity, setSeverity] = useState({
+  const [pollutionIssues, setPollutionIssues] = useState({
     excessiveSmoke: '',
     loudNoise: '',
     excessiveHorn:'',
@@ -49,6 +51,64 @@ const BusConditionPollutionFeedback = () => {
     }
   };
 
+  const handleSubmit = async () => {
+    const user = auth.currentUser;
+
+  if (!user) {
+    console.log("No authenticated user found.");
+    return;
+  }
+
+  if (!numberPlate.trim()) {
+    console.log("Number plate is required.");
+    return;
+  }
+
+  const feedbackPath = `passengerFeedback/${numberPlate}-${user.email}`;
+  const docRef = doc(db, feedbackPath);
+
+  try {
+    const docSnap = await getDoc(docRef);
+    let existingData = docSnap.exists() ? docSnap.data() : {};
+
+    // Check if busPlate exists in the document
+    const busPlateExists = existingData.busPlate !== undefined;
+
+    // Construct feedback data
+    const feedbackData = {
+      busConditionPollution: {
+        conditionRating,
+        ratingReason,
+        pollutionIssues: {
+          excessiveSmoke: pollutionIssues.excessiveSmoke || "None",
+          loudSilencer: pollutionIssues.loudNoise || "None",
+          excessiveHorn: pollutionIssues.excessiveHorn || "None",
+        },
+        
+      },
+      timestamp: new Date().toISOString(), // Adding timestamp
+    };
+
+    // Only add busPlate if it's not already present
+    if (!busPlateExists) {
+      feedbackData.busPlate = numberPlate;
+    }
+
+    if (docSnap.exists()) {
+      // Update existing document
+      await setDoc(docRef, feedbackData, { merge: true });
+      console.log("Feedback updated successfully.");
+    } else {
+      // Create new document
+      await setDoc(docRef, feedbackData);
+      console.log("Feedback submitted successfully.");
+    }
+  } catch (error) {
+    console.error("Error saving feedback:", error);
+  }
+};
+
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
         {/* Main Heading */}
@@ -64,7 +124,7 @@ const BusConditionPollutionFeedback = () => {
         <Subheading style={styles.subheading}>How was the bus interior condition</Subheading>
 
         {/* Star Rating Component */}
-        <StarRating rating={satisfactionRating} setRating={setSatisfactionRating} />
+        <StarRating rating={conditionRating} setRating={setConditionRating} />
 
         {/* Subheading */}
         <Subheading style={styles.subheading}>Reason for the above rating</Subheading>
@@ -73,8 +133,8 @@ const BusConditionPollutionFeedback = () => {
         <TextInput
             mode="outlined"
             label="Provide your feedback"
-            value={suggestion}
-            onChangeText={(text) => setSuggestion(text)}
+            value={ratingReason}
+            onChangeText={(text) => setRatingReason(text)}
             multiline
             numberOfLines={4}
             style={styles.input}
@@ -116,8 +176,8 @@ const BusConditionPollutionFeedback = () => {
             <View>
             <Subheading style={styles.subheading}>Severity level for excessive smoke from the bus:</Subheading>
             <RadioButton.Group
-                onValueChange={(value) => setSeverity((prev) => ({ ...prev, excessiveSmoke: value }))}
-                value={severity.excessiveSmoke}
+                onValueChange={(value) => setPollutionIssues((prev) => ({ ...prev, excessiveSmoke: value }))}
+                value={pollutionIssues.excessiveSmoke}
             >
                 <RadioButton.Item label="Low" value="low" />
                 <RadioButton.Item label="Medium" value="medium" />
@@ -130,8 +190,8 @@ const BusConditionPollutionFeedback = () => {
             <View>
             <Subheading style={styles.subheading}>Severity level for loud silencer noise:</Subheading>
             <RadioButton.Group
-                onValueChange={(value) => setSeverity((prev) => ({ ...prev, loudNoise: value }))}
-                value={severity.loudNoise}
+                onValueChange={(value) => setPollutionIssues((prev) => ({ ...prev, loudNoise: value }))}
+                value={pollutionIssues.loudNoise}
             >
                 <RadioButton.Item label="Low" value="low" />
                 <RadioButton.Item label="Medium" value="medium" />
@@ -144,8 +204,8 @@ const BusConditionPollutionFeedback = () => {
             <View>
             <Subheading style={styles.subheading}>Severity level for Exessive horn noise:</Subheading>
             <RadioButton.Group
-                onValueChange={(value) => setSeverity((prev) => ({ ...prev, excessiveHorn: value }))}
-                value={severity.excessiveHorn}
+                onValueChange={(value) => setPollutionIssues((prev) => ({ ...prev, excessiveHorn: value }))}
+                value={pollutionIssues.excessiveHorn}
             >
                 <RadioButton.Item label="Low" value="low" />
                 <RadioButton.Item label="Medium" value="medium" />
@@ -170,7 +230,7 @@ const BusConditionPollutionFeedback = () => {
         <Button
             mode="contained"
             style={styles.button}
-            onPress={() => alert(`Feedback submitted with severity: ${JSON.stringify(severity)}`)}
+            onPress={handleSubmit}
         >
             Submit Feedback
         </Button>

@@ -2,20 +2,35 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
 import { useRouter,useLocalSearchParams } from 'expo-router';
-
+import { useTranslation } from 'react-i18next';
+import { auth } from '../../db/firebaseConfig';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+// import i18n from './i18n';
 const DriverSignIn = () => {
     const router = useRouter();
     const { category } = useLocalSearchParams();
     const [licensePlateNumber, setLicensePlateNumber] = useState('');
+    const [email, setEmail] = useState('');
     const [driverPassword, setdriverPassword] = useState('');
     const [showDriverPassword, setShowDriverPassword] = useState(false);
+    const { t } = useTranslation();
 
     const handleSignIn = () => {
-        console.log(driverPassword);
-        console.log(licensePlateNumber);
-        router.push('../../screens/driver/driverRideStartCancelScreen');
-    };
+        if (!email || !licensePlateNumber || !driverPassword) {
+            console.error('All fields are required.');
+            return;
+        }
 
+        signInWithEmailAndPassword(auth, email, driverPassword)
+            .then((userCredential) => { 
+                const user = userCredential.user;
+                console.log("Driver signed in successfully:", user);
+                router.push({ pathname:'../../screens/driver/driverRideStartCancelScreen',params: { licensePlateNumber: licensePlateNumber }});
+                
+            }).catch((error) => {
+                console.error("Error signing in driver:", error.message);
+            });
+    };
     return (
         <SafeAreaView style={styles.container}>
             <KeyboardAvoidingView 
@@ -24,20 +39,30 @@ const DriverSignIn = () => {
             >
                 <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
                     <View style={styles.centeredContent}>
-                        <Text style={styles.subHeading}>Sign In</Text>
+                        <Text style={styles.subHeading}>{t('signIn')}</Text>
 
                         <TextInput
                             style={styles.input}
-                            label="License Plate Number"
+                            label={t('plate num')}
                             value={licensePlateNumber}
                             onChangeText={text => setLicensePlateNumber(text)}
                             mode='outlined'
-                            keyboardType='phone-pad'
+                            keyboardType='default'
+                        />
+
+                          <TextInput
+                            style={styles.input}
+                            label={t('email')}
+                            value={email}
+                            onChangeText={text => setEmail(text)}
+                            mode='outlined'
+                            keyboardType='email-address'
+                            autoCapitalize='none'
                         />
 
                         <TextInput
                             style={styles.input}
-                            label="Password"
+                            label={t('Password')}
                             value={driverPassword}
                             onChangeText={text => setdriverPassword(text)}
                             mode='outlined'
@@ -49,7 +74,7 @@ const DriverSignIn = () => {
                                 />
                             }
                         />
-                        <Button mode='contained' style={styles.signInButton} onPress={handleSignIn}>Sign In</Button>
+                        <Button mode='contained' style={styles.signInButton} onPress={handleSignIn}>{t('signIn')}</Button>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>

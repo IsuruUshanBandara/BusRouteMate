@@ -38,17 +38,17 @@ const OwnerHome = () => {
         </Card>
 
         {/* Full-width Card 2 */}
-        <Card style={styles.card} onPress={() => console.log('edit/delete buses and drivers')}>
+        <Card style={styles.card} onPress={() => router.push('screens/owner/manageDriverBusScreen')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Edit/Delete Buses and Drivers"/>
         </Card>
 
         {/* Full-width Card 3 */}
-        <Card style={styles.card} onPress={() => console.log('track bus')}>
+        <Card style={styles.card} onPress={() => router.push('screens/owner/rideStartedBusListScreen')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Track Bus"/>
         </Card>
 
          {/* Full-width Card 4 */}
-         <Card style={styles.card} onPress={() => console.log('view feedback')}>
+         <Card style={styles.card} onPress={() => router.push('screens/owner/viewFeedbackScreen1')}>
         <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="View Feedback"/>
         </Card>
 

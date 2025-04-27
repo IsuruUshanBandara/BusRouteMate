@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { StyleSheet, ScrollView, View, TouchableOpacity } from 'react-native';
 import { Text, Title, Subheading, TextInput, Button } from 'react-native-paper';
+import {doc,setDoc,getDoc } from 'firebase/firestore';
+import {auth,db} from'../../db/firebaseConfig';
 
 const StarRating = ({ maxStars = 5, rating, setRating }) => {
   return (
@@ -20,6 +22,58 @@ const SatisfactionSuggestions = () => {
   const [satisfactionRating, setSatisfactionRating] = useState(0);
   const [suggestion, setSuggestion] = useState('');
   const [numberPlate, setNumberPlate] = useState('');
+
+  const handleSubmit = async () => {
+    const user = auth.currentUser;
+
+  if (!user) {
+    console.log("No authenticated user found.");
+    return;
+  }
+
+  if (!numberPlate.trim()) {
+    console.log("Number plate is required.");
+    return;
+  }
+
+  const feedbackPath = `passengerFeedback/${numberPlate}-${user.email}`;
+    const docRef = doc(db, feedbackPath);
+
+  try {
+    const docSnap = await getDoc(docRef);
+    let existingData = docSnap.exists() ? docSnap.data() : {};
+
+    // Check if busPlate exists in the document
+    const busPlateExists = existingData.busPlate !== undefined;
+
+    // Construct feedback data
+    const feedbackData = {
+      satisfactionSuggestions: {
+        satisfactionRating,
+        suggestion,
+        
+      },
+      timestamp: new Date().toISOString(), // Adding timestamp
+    };
+
+    // Only add busPlate if it's not already present
+    if (!busPlateExists) {
+      feedbackData.busPlate = numberPlate;
+    }
+
+    if (docSnap.exists()) {
+      // Update existing document
+      await setDoc(docRef, feedbackData, { merge: true });
+      console.log("Feedback updated successfully.");
+    } else {
+      // Create new document
+      await setDoc(docRef, feedbackData);
+      console.log("Feedback submitted successfully.");
+    }
+  } catch (error) {
+    console.error("Error saving feedback:", error);
+  }
+};
   return (
     <ScrollView contentContainerStyle={styles.container}>
         {/* Main Heading */}
@@ -63,7 +117,7 @@ const SatisfactionSuggestions = () => {
         />
 
         {/* Submit Button */}
-        <Button mode="contained" style={styles.button} onPress={() => alert('Feedback submitted!')}>
+        <Button mode="contained" style={styles.button} onPress={handleSubmit}>
             Submit Feedback
         </Button>
     </ScrollView>

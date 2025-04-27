@@ -64,13 +64,23 @@ const AddRegisterDriverBusScreen1 = () => {
     // Handler to save details and navigate to the next screen with the data
     const handleSubmit = async () => {
         try{
+        const normalizedPlateNum = licencePlateNum.trim().toUpperCase();
+        const normalizedPhoneNum = ownerPhoneNumber.trim();
+        if (!normalizedPlateNum) {
+            console.error("License Plate Number is required.");
+            return;
+        }
          // Reference to the specific bus's route collection in Firestore
-        // const busRef = doc(db, `privateOwners/${ownerPhoneNumber}/buses/${licencePlateNum}`);
-        const routesCollectionRef = collection(db, `privateOwners/${ownerPhoneNumber}/routes`);
+        const busRef = doc(db, `privateOwners/${normalizedPhoneNum}/buses/${normalizedPlateNum}`);
+        // Create the bus document inside the buses collection with the license plate number
+        await setDoc(busRef, { licencePlateNum: normalizedPlateNum }, { merge: true });
 
+        // const routesCollectionRef = collection(db, `privateOwners/${normalizedPhoneNum}/routes`);
+        const routesCollectionRef = collection(db, `routes`);
+        
         // Save each route to Firestore with an auto-generated document ID
         for (const route of routes) {
-            const routeDocRef = doc(routesCollectionRef,`${licencePlateNum}-${route.busRoute}`);
+            const routeDocRef = doc(routesCollectionRef,`${normalizedPlateNum}-${route.busRoute}`);
             await setDoc(routeDocRef, {
                 routeNum: route.routeNum,
                 routeName: route.busRoute,

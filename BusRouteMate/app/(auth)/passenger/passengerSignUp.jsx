@@ -2,6 +2,9 @@ import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView,
 import React, { useState } from 'react';
 import { TextInput, Button, Menu, Provider } from 'react-native-paper';
 import { useRouter } from 'expo-router';
+import {createUserWithEmailAndPassword} from 'firebase/auth';  
+import {auth,db} from'../../db/firebaseConfig'; 
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 const PassengerSignUp = () => {
     const router = useRouter();
@@ -15,9 +18,49 @@ const PassengerSignUp = () => {
     const [securityQuestion, setSecurityQuestion] = useState('');
     const [menuVisible, setMenuVisible] = useState(false);
 
-    const handleSignUp = () => {
-        console.log(password);
-        console.log(phoneNumber);
+    const handleSignUp = async () => {
+        // console.log(password);
+        // console.log(phoneNumber);
+        if (!email || !password || !confirmPassword || !phoneNumber || !securityQuestion || !securityQuestionAns) {
+            // Alert.alert("Error", "Please fill in all fields.");
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            // Alert.alert("Error", "Passwords do not match.");
+            return;
+        }
+
+        try {
+            // Create user in Firebase Authentication
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // Reference to Firestore document
+            const userDocRef = doc(db, "passengerDetails", email);
+
+            // Check if the document already exists
+            const docSnapshot = await getDoc(userDocRef);
+            if (!docSnapshot.exists()) {
+                // Store user details in Firestore with email as document ID
+                await setDoc(userDocRef, {
+                    email,
+                    phoneNumber,
+                    securityQuestion,
+                    securityQuestionAns,
+                    createdAt: new Date(),
+                });
+
+                // Alert.alert("Success", "Passenger account created successfully!");
+                console.error("sucessfully created passenger account");
+                router.push('passenger/passengerSignIn'); // Navigate to the passenger's home screen
+            } else {
+               
+            }
+        } catch (error) {
+            console.error("Sign-up error:", error);
+            
+        }
     };
 
     const securityQuestions = [

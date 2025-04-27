@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator, FlatList } from 'react-native';
 import React, { useEffect, useState, useRef } from 'react';
 import { Button, IconButton } from 'react-native-paper';
 import { useRouter } from 'expo-router';
@@ -11,9 +11,10 @@ import { GOOGLE_MAPS_API_KEY } from '@env';
 
 const GOOGLE_API_KEY = GOOGLE_MAPS_API_KEY;
 
-// Custom Autocomplete Input Component - modified to not use scrollable lists
-function InputAutocomplete({ placeholder, value, onPlaceSelected, index = null }) {
+// Improved Autocomplete Input Component
+function InputAutocomplete({ placeholder, value, onPlaceSelected, index = null, zIndexValue = 1 }) {
   const ref = useRef();
+  const [isFocused, setIsFocused] = useState(false);
 
   // Clear input when value changes to empty string
   useEffect(() => {
@@ -23,41 +24,63 @@ function InputAutocomplete({ placeholder, value, onPlaceSelected, index = null }
   }, [value]);
 
   return (
-    <GooglePlacesAutocomplete
-      ref={ref}
-      styles={{
-        container: {
-          flex: 0,
-          marginVertical: 10,
-        },
-        textInput: styles.input,
-        listView: {
-          position: 'absolute',
-          top: 50,
-          left: 0,
-          right: 0,
-          backgroundColor: 'white',
-          zIndex: 1000,
-          elevation: 3,
-        },
-      }}
-      placeholder={placeholder || ""}
-      fetchDetails
-      onPress={(data, details = null) => {
-        const cityName = details?.name || data.description;
-        onPlaceSelected(cityName, index);
-      }}
-      query={{
-        key: GOOGLE_API_KEY,
-        language: "en",
-      }}
-      textInputProps={{
-        defaultValue: value,
-      }}
-      enablePoweredByContainer={false}
-      keyboardShouldPersistTaps="handled"
-      listViewDisplayed={false} // Only show when typing
-    />
+    <View style={{ 
+      zIndex: zIndexValue,
+      elevation: zIndexValue, // For Android
+      marginVertical: 10,
+      position: 'relative',
+    }}>
+      <GooglePlacesAutocomplete
+        ref={ref}
+        styles={{
+          container: {
+            flex: 0,
+          },
+          textInput: styles.input,
+          listView: {
+            position: 'absolute',
+            top: 50,
+            left: 0,
+            right: 0,
+            backgroundColor: 'white',
+            zIndex: 9999,
+            elevation: 9999,
+            borderWidth: 1,
+            borderColor: '#ddd',
+            borderRadius: 5,
+          },
+          row: {
+            padding: 13,
+            height: 44,
+            flexDirection: 'row',
+          },
+          separator: {
+            height: 0.5,
+            backgroundColor: '#c8c7cc',
+          },
+        }}
+        placeholder={placeholder || ""}
+        fetchDetails
+        onPress={(data, details = null) => {
+          const cityName = details?.name || data.description;
+          onPlaceSelected(cityName, index);
+          setIsFocused(false);
+        }}
+        query={{
+          key: GOOGLE_API_KEY,
+          language: "en",
+        }}
+        textInputProps={{
+          defaultValue: value,
+          onFocus: () => setIsFocused(true),
+          onBlur: () => setIsFocused(false),
+        }}
+        enablePoweredByContainer={false}
+        keyboardShouldPersistTaps="handled"
+        listViewDisplayed={isFocused}
+        disableScroll={true} // Important: Disable internal scrolling
+      />
+    </View>
   );
 }
 
@@ -73,6 +96,7 @@ const AddRegisterDriverBusScreen1 = () => {
     const [routeData, setRouteData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [ownerPhoneNumber, setOwnerPhoneNumber] = useState('');
+    const [formElements, setFormElements] = useState([]);
     
     // Parse bus data only once when `busData` is available
     useEffect(() => {
@@ -123,6 +147,51 @@ const AddRegisterDriverBusScreen1 = () => {
         return unsubscribe;
     }, []);
         
+    // Prepare form elements data for FlatList
+    useEffect(() => {
+        const elements = [];
+        
+        // Add header
+        elements.push({
+            type: 'header',
+            id: 'header',
+            routeNum: parsedBusData[currentRouteIndex]?.routeNum || ''
+        });
+        
+        // Add origin
+        elements.push({
+            type: 'origin',
+            id: 'origin',
+            value: origin
+        });
+        
+        // Add passing cities
+        passingCities.forEach((city, index) => {
+            elements.push({
+                type: 'passingCity',
+                id: `passingCity-${index}`,
+                value: city,
+                index: index
+            });
+        });
+        
+        // Add destination
+        elements.push({
+            type: 'destination',
+            id: 'destination',
+            value: destination
+        });
+        
+        // Add buttons
+        elements.push({
+            type: 'buttons',
+            id: 'buttons',
+            isLastRoute: currentRouteIndex >= parsedBusData.length - 1
+        });
+        
+        setFormElements(elements);
+    }, [parsedBusData, currentRouteIndex, origin, destination, passingCities]);
+    
     if(loading) {
         return (
             <View style={styles.loadingContainer}>
@@ -171,8 +240,8 @@ const AddRegisterDriverBusScreen1 = () => {
     const handleSubmit = async () => {
         try {
             // Create a reference to the routes collection in Firestore
-            const routesCollectionRef = collection(db, `privateOwners/${ownerPhoneNumber}/routes`);
-            
+            // const routesCollectionRef = collection(db, `privateOwners/${ownerPhoneNumber}/routes`);
+            const routesCollectionRef = collection(db, `routes`);
             const finalRoutes = [...routeData, {
                 routeNum: parsedBusData[currentRouteIndex].routeNum,
                 origin,
@@ -181,32 +250,32 @@ const AddRegisterDriverBusScreen1 = () => {
                 busRoute: parsedBusData[currentRouteIndex].busRoute,
             }];
 
-            // Save each route to Firestore
-            for (const route of finalRoutes) {
-                const routeDocRef = doc(routesCollectionRef, `${plateNum}-${route.busRoute}`);
+            // // Save each route to Firestore
+            // for (const route of finalRoutes) {
+            //     const routeDocRef = doc(routesCollectionRef, `${plateNum}-${route.busRoute}`);
     
-                // Check if the document exists to either create it (setDoc) or update it (updateDoc)
-                const docSnapshot = await getDoc(routeDocRef);
-                if (docSnapshot.exists()) {
-                    // Update the document with new fields (does not overwrite)
-                    await updateDoc(routeDocRef, {
-                        origin: route.origin,
-                        destination: route.destination,
-                        passingCities: route.passingCities, // This is an array
-                    });
-                } else {
-                    // If the document does not exist, create it
-                    await setDoc(routeDocRef, {
-                        routeNum: route.routeNum,
-                        routeName: route.busRoute,
-                        origin: route.origin,
-                        destination: route.destination,
-                        passingCities: route.passingCities, // This is an array
-                    });
-                }
-            }
+            //     // Check if the document exists to either create it (setDoc) or update it (updateDoc)
+            //     const docSnapshot = await getDoc(routeDocRef);
+            //     if (docSnapshot.exists()) {
+            //         // Update the document with new fields (does not overwrite)
+            //         await updateDoc(routeDocRef, {
+            //             origin: route.origin,
+            //             destination: route.destination,
+            //             passingCities: route.passingCities, // This is an array
+            //         });
+            //     } else {
+            //         // If the document does not exist, create it
+            //         await setDoc(routeDocRef, {
+            //             routeNum: route.routeNum,
+            //             routeName: route.busRoute,
+            //             origin: route.origin,
+            //             destination: route.destination,
+            //             passingCities: route.passingCities, // This is an array
+            //         });
+            //     }
+            // }
 
-            console.log("Data saved successfully to Firestore:");
+            // console.log("Data saved successfully to Firestore:");
             
             router.push({
                 pathname: 'screens/owner/addRegisterDriverBusScreen2',
@@ -217,56 +286,64 @@ const AddRegisterDriverBusScreen1 = () => {
         }
     };
 
-    return (
-        <SafeAreaView style={styles.container}>
-            <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                {/* ScrollView removed, using a regular View with padding instead */}
-                <View style={styles.contentContainer}>
-                    <View style={styles.centeredContent}>
-                        <View style={styles.subHeadingContainer}>
-                            <Text style={styles.subHeading}>
-                                Passing Cities for Route {parsedBusData[currentRouteIndex]?.routeNum || ''}
-                            </Text>
+    // Render different types of items for the FlatList
+    const renderItem = ({ item }) => {
+        switch (item.type) {
+            case 'header':
+                return (
+                    <View style={styles.subHeadingContainer}>
+                        <Text style={styles.subHeading}>
+                            Passing Cities for Route {item.routeNum}
+                        </Text>
+                    </View>
+                );
+            case 'origin':
+                return (
+                    <InputAutocomplete
+                        placeholder="Origin"
+                        value={item.value}
+                        onPlaceSelected={(text) => setOrigin(text)}
+                        zIndexValue={3000}
+                    />
+                );
+            case 'passingCity':
+                return (
+                    <View style={styles.cityContainer}>
+                        <View style={{ flex: 1 }}>
+                            <InputAutocomplete
+                                placeholder={`In-Between City ${item.index + 1}`}
+                                value={item.value}
+                                onPlaceSelected={(text) => updatePassingCity(text, item.index)}
+                                index={item.index}
+                                zIndexValue={2000 - (item.index * 10)}
+                            />
                         </View>
-
-                        <InputAutocomplete
-                            placeholder="Origin"
-                            value={origin}
-                            onPlaceSelected={(text) => setOrigin(text)}
-                        />
-
-                        {passingCities.map((city, index) => (
-                            <View key={index} style={styles.cityContainer}>
-                                <View style={{ flex: 1 }}>
-                                    <InputAutocomplete
-                                        placeholder={`In-Between City ${index + 1}`}
-                                        value={city}
-                                        onPlaceSelected={(text) => updatePassingCity(text, index)}
-                                        index={index}
-                                    />
-                                </View>
-                                {index > 0 && (
-                                    <IconButton
-                                        icon="delete"
-                                        size={20}
-                                        onPress={() => removePassingCity(index)}
-                                        style={styles.deleteIcon}
-                                    />
-                                )}
-                            </View>
-                        ))}
-
-                        <InputAutocomplete
-                            placeholder="Destination"
-                            value={destination}
-                            onPlaceSelected={(text) => setDestination(text)}
-                        />
-
+                        {item.index > 0 && (
+                            <IconButton
+                                icon="delete"
+                                size={20}
+                                onPress={() => removePassingCity(item.index)}
+                                style={styles.deleteIcon}
+                            />
+                        )}
+                    </View>
+                );
+            case 'destination':
+                return (
+                    <InputAutocomplete
+                        placeholder="Destination"
+                        value={item.value}
+                        onPlaceSelected={(text) => setDestination(text)}
+                        zIndexValue={1000}
+                    />
+                );
+            case 'buttons':
+                return (
+                    <View style={styles.buttonContainer}>
                         <Button mode="contained" style={styles.addButton} onPress={addPassingCity}>
                             Add In-Between City
                         </Button>
-
-                        {currentRouteIndex < parsedBusData.length - 1 ? (
+                        {!item.isLastRoute ? (
                             <Button mode="contained" style={styles.nextButton} onPress={handleNext}>
                                 Next
                             </Button>
@@ -276,7 +353,28 @@ const AddRegisterDriverBusScreen1 = () => {
                             </Button>
                         )}
                     </View>
-                </View>
+                );
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <SafeAreaView style={styles.container}>
+            <KeyboardAvoidingView 
+                style={styles.container} 
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+            >
+                <FlatList
+                    data={formElements}
+                    renderItem={renderItem}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.contentContainer}
+                    keyboardShouldPersistTaps="handled"
+                    removeClippedSubviews={false} // Important for autocomplete
+                    ListFooterComponent={<View style={{ height: 100 }} />} // Add padding at the bottom
+                />
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -289,14 +387,8 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     contentContainer: {
-        flexGrow: 1,
         paddingHorizontal: '5%',
-        paddingBottom: '5%',
         paddingTop: '5%',
-    },
-    centeredContent: {
-        flex: 1,
-        justifyContent: 'center',
     },
     subHeadingContainer: {
         justifyContent: 'center',
@@ -320,10 +412,14 @@ const styles = StyleSheet.create({
     cityContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        zIndex: 1000, // Ensure autocomplete dropdown appears above other elements
+        position: 'relative',
     },
     deleteIcon: {
         marginLeft: 5,
+    },
+    buttonContainer: {
+        zIndex: 1,
+        marginTop: 20,
     },
     addButton: {
         marginTop: 10,

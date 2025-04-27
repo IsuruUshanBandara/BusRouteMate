@@ -38,12 +38,12 @@ const handleNavigation = (category, path) => {
 
       {/* Full-width Card 2 */}
       <Card style={styles.card} onPress={() => handleNavigation('owner', '/(auth)/organizationSelection')}>
-        <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Owner" subtitle="Sign in/Sign up" />
+        <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title={t('owner')} subtitle="Sign in/Sign up" />
       </Card>
-
+      
       {/* Full-width Card 3 */}
       <Card style={styles.card} onPress={() => handleNavigation('passenger', '/(auth)/passenger/passengerSignIn')}>
-        <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Passenger" subtitle="Sign in/Sign up" />
+        <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title={t('passenger')} subtitle="Sign in/Sign up" />
       </Card>
 
       

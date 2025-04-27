@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { StyleSheet, ScrollView, View, TouchableOpacity } from 'react-native';
 import { Text, Title, Subheading, TextInput, Button } from 'react-native-paper';
+import {doc,setDoc,getDoc } from 'firebase/firestore';
+import {auth,db} from'../../db/firebaseConfig';
 
 const StarRating = ({ maxStars = 5, rating, setRating }) => {
   return (
@@ -18,10 +20,66 @@ const StarRating = ({ maxStars = 5, rating, setRating }) => {
 
 const DriverConductorRatingFeedback = () => {
   const [driverRating, setDriverRating] = useState(0);
-  const [feedback1, setFeedback1] = useState('');
-  const [feedback2, setFeedback2] = useState('');
-  const [additionalNotes, setAdditionalNotes] = useState('');
+  const [driverRatingReason, setDriverRatingReason] = useState('');
+  const [conductorRatingReason, setConductorRatingReason] = useState('');
+  const [numberPlate, setNumberPlate] = useState('');
   const [conductorRating,setConductorRating] = useState(0);
+
+  const handleSubmit = async () => {
+      const user = auth.currentUser;
+  
+    if (!user) {
+      console.log("No authenticated user found.");
+      return;
+    }
+  
+    if (!numberPlate.trim()) {
+      console.log("Number plate is required.");
+      return;
+    }
+  
+    const feedbackPath = `passengerFeedback/${numberPlate}-${user.email}`;
+    const docRef = doc(db, feedbackPath);
+
+  try {
+    const docSnap = await getDoc(docRef);
+    let existingData = docSnap.exists() ? docSnap.data() : {};
+
+    // Check if busPlate exists in the document
+    const busPlateExists = existingData.busPlate !== undefined;
+
+    // Construct feedback data
+    const feedbackData = {
+       driverConductor: {
+        driverRating,
+        driverRatingReason,
+        conductorRating,
+        conductorRatingReason,
+        
+      },
+        
+      timestamp: new Date().toISOString(), // Adding timestamp
+    };
+
+    // Only add busPlate if it's not already present
+    if (!busPlateExists) {
+      feedbackData.busPlate = numberPlate;
+    }
+
+    if (docSnap.exists()) {
+      // Update existing document
+      await setDoc(docRef, feedbackData, { merge: true });
+      console.log("Feedback updated successfully.");
+    } else {
+      // Create new document
+      await setDoc(docRef, feedbackData);
+      console.log("Feedback submitted successfully.");
+    }
+  } catch (error) {
+    console.error("Error saving feedback:", error);
+  }
+};
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* Main Heading */}
@@ -45,8 +103,8 @@ const DriverConductorRatingFeedback = () => {
       <TextInput
         mode="outlined"
         label="Describe your experience"
-        value={feedback1}
-        onChangeText={(text) => setFeedback1(text)}
+        value={driverRatingReason}
+        onChangeText={(text) => setDriverRatingReason(text)}
         multiline
         numberOfLines={4}
         style={styles.input}
@@ -63,8 +121,8 @@ const DriverConductorRatingFeedback = () => {
       <TextInput
         mode="outlined"
         label="Share your suggestions"
-        value={feedback2}
-        onChangeText={(text) => setFeedback2(text)}
+        value={conductorRatingReason}
+        onChangeText={(text) => setConductorRatingReason(text)}
         multiline
         numberOfLines={4}
         style={styles.input}
@@ -77,13 +135,13 @@ const DriverConductorRatingFeedback = () => {
       <TextInput
         mode="outlined"
         label="KL1055"
-        value={additionalNotes}
-        onChangeText={(text) => setAdditionalNotes(text)}
+        value={numberPlate}
+        onChangeText={(text) => setNumberPlate(text)}
         style={styles.input}
       />
 
       {/* Submit Button */}
-      <Button mode="contained" style={styles.button} onPress={() => alert('Feedback submitted!')}>
+      <Button mode="contained" style={styles.button} onPress={handleSubmit}>
         Submit Feedback
       </Button>
     </ScrollView>
