@@ -169,7 +169,7 @@ const EditBusRouteMap = () => {
       Alert.alert(
         'Success',
         'Route updated successfully',
-        [{ text: 'OK', onPress: () => router.replace('/screens/owner/manageBuses') }]
+        [{ text: 'OK', onPress: () => router.replace('/screens/owner/manageDriverBusScreen') }]
       );
     } catch (error) {
       console.error('Error saving route:', error);
