@@ -1,15 +1,17 @@
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
-import { Appbar } from 'react-native-paper';
-import { Slot,useRouter } from 'expo-router';
+import { View, StyleSheet } from 'react-native'
+import { Appbar, Text } from 'react-native-paper';
+import { Slot, useRouter } from 'expo-router';
 
 const Authlayout = () => {
-const router = useRouter();
+  const router = useRouter();
   return (
-    <View style={Styles.container}>
-      <Appbar.Header style={Styles.appBarHeader}>
+    <View style={styles.container}>
+      <Appbar.Header style={styles.appBarHeader}>
         <Appbar.BackAction onPress={() => router.back()} />
-        <Appbar.Content style={Styles.appbartitle} title="Bus Route Mate" />
+        <View style={styles.titleContainer}>
+          <Text style={styles.titleText}>Bus Route Mate</Text>
+        </View>
       </Appbar.Header>
       <Slot />
     </View>
@@ -18,13 +20,26 @@ const router = useRouter();
 
 export default Authlayout
 
-const Styles = StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
-    
   },
-  appbartitle: {
-    alignItems: 'center'
+  appBarHeader: {
+    elevation: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
   },
-  
+  titleContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 48, // Compensates for the back button to keep title centered
+  },
+  titleText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1976d2',
+    letterSpacing: 0.5,
+  },
 })

@@ -588,277 +588,392 @@ const DriverRideStartCancel = () => {
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContainer}>
           <View style={styles.centeredContent}>
-            <Text style={styles.plateNumber}>Bus: {licensePlateNumber}</Text>
-            <Text style={styles.heading}>Select Route from Below</Text>
-
-            {isLoading ? (
-              <Text style={styles.loadingText}>Loading routes...</Text>
-            ) : (
-              <>
-                {/* Route Dropdown */}
-                <Menu
-                  visible={menuVisible}
-                  onDismiss={() => setMenuVisible(false)}
-                  anchor={
-                    <Pressable onPress={toggleMenuVisibility} style={styles.input}>
-                      <TextInput
-                        label="Select your route"
-                        value={selectedRoute || ""}
-                        placeholder={!selectedRoute ? "Select a route" : ""}
-                        mode="outlined"
-                        editable={false}
-                        right={
-                          <TextInput.Icon 
-                            icon={menuVisible ? 'chevron-up' : 'chevron-down'} 
-                            onPress={toggleMenuVisibility} 
-                          />
-                        }
-                      />
-                    </Pressable>
-                  }
-                  contentStyle={[styles.menuContent, { width: '100%' }]}
-                >
-                  <ScrollView style={{ maxHeight: 150 }}>
-                    {routes.length > 0 ? (
-                      routes.map((route, index) => (
-                        <Menu.Item
-                          key={index}
-                          onPress={() => {
-                            setSelectedRoute(route);
-                            setMenuVisible(false);
-                          }}
-                          title={route}
-                          style={styles.menuItem}
+            {/* Header with bus plate number */}
+            <View style={styles.headerContainer}>
+              <Text style={styles.plateNumber}>Bus: {licensePlateNumber}</Text>
+            </View>
+  
+            <View style={styles.cardContainer}>
+              <Text style={styles.cardTitle}>Select Your Route</Text>
+  
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <Text style={styles.loadingText}>Loading routes...</Text>
+                </View>
+              ) : (
+                <>
+                  {/* Route Dropdown */}
+                  <Menu
+                    visible={menuVisible}
+                    onDismiss={() => setMenuVisible(false)}
+                    anchor={
+                      <Pressable onPress={toggleMenuVisibility} style={styles.inputContainer}>
+                        <TextInput
+                          label="Select your route"
+                          value={selectedRoute || ""}
+                          placeholder={!selectedRoute ? "Select a route" : ""}
+                          mode="outlined"
+                          editable={false}
+                          outlineColor="#1976d2"
+                          activeOutlineColor="#1976d2"
+                          right={
+                            <TextInput.Icon 
+                              icon={menuVisible ? 'chevron-up' : 'chevron-down'} 
+                              onPress={toggleMenuVisibility}
+                              color="#1976d2" 
+                            />
+                          }
+                          style={styles.input}
+                          theme={{ colors: { primary: '#1976d2' } }}
                         />
-                      ))
-                    ) : (
-                      <Menu.Item
-                        title="No routes found"
-                        disabled
-                        style={styles.menuItem}
-                      />
-                    )}
-                  </ScrollView>
-                </Menu>
-
-                {/* Destination Dropdown - Only show if route is selected */}
-                {selectedRoute && destinationOptions.length > 0 && (
-                  <View style={styles.destinationContainer}>
-                    <Text style={styles.subHeading}>Select Destination</Text>
-                    <Menu
-                      visible={destMenuVisible}
-                      onDismiss={() => setDestMenuVisible(false)}
-                      anchor={
-                        <Pressable onPress={toggleDestMenuVisibility} style={styles.input}>
-                          <TextInput
-                            label="Select destination"
-                            value={selectedDestination || ""}
-                            placeholder={!selectedDestination ? "Select a destination" : ""}
-                            mode="outlined"
-                            editable={false}
-                            right={
-                              <TextInput.Icon 
-                                icon={destMenuVisible ? 'chevron-up' : 'chevron-down'} 
-                                onPress={toggleDestMenuVisibility} 
-                              />
-                            }
-                          />
-                        </Pressable>
-                      }
-                      contentStyle={[styles.menuContent, { width: '100%' }]}
-                    >
-                      <ScrollView style={{ maxHeight: 150 }}>
-                        {destinationOptions.map((destination, index) => (
+                      </Pressable>
+                    }
+                    contentStyle={styles.menuContent}
+                  >
+                    <ScrollView style={styles.dropdownScroll}>
+                      {routes.length > 0 ? (
+                        routes.map((route, index) => (
                           <Menu.Item
                             key={index}
-                            onPress={() => handleDestinationChange(destination)}
-                            title={destination}
+                            onPress={() => {
+                              setSelectedRoute(route);
+                              setMenuVisible(false);
+                            }}
+                            title={route}
+                            titleStyle={styles.menuItemText}
                             style={styles.menuItem}
                           />
-                        ))}
-                      </ScrollView>
-                    </Menu>
-
-                    {/* Direction indicator */}
-                    {destinationOptions.length === 2 && (
-                      <Text style={styles.directionText}>
-                        Direction: {isReversed ? destinationOptions[1] : destinationOptions[0]} → {selectedDestination}
-                      </Text>
-                    )}
-                  </View>
-                )}
-              </>
-            )}
-            
+                        ))
+                      ) : (
+                        <Menu.Item
+                          title="No routes found"
+                          disabled
+                          titleStyle={styles.disabledMenuText}
+                          style={styles.menuItem}
+                        />
+                      )}
+                    </ScrollView>
+                  </Menu>
+  
+                  {/* Destination Dropdown - Only show if route is selected */}
+                  {selectedRoute && destinationOptions.length > 0 && (
+                    <View style={styles.destinationSection}>
+                      <Text style={styles.subHeading}>Select Destination</Text>
+                      <Menu
+                        visible={destMenuVisible}
+                        onDismiss={() => setDestMenuVisible(false)}
+                        anchor={
+                          <Pressable onPress={toggleDestMenuVisibility} style={styles.inputContainer}>
+                            <TextInput
+                              label="Select destination"
+                              value={selectedDestination || ""}
+                              placeholder={!selectedDestination ? "Select a destination" : ""}
+                              mode="outlined"
+                              editable={false}
+                              outlineColor="#1976d2"
+                              activeOutlineColor="#1976d2"
+                              right={
+                                <TextInput.Icon 
+                                  icon={destMenuVisible ? 'chevron-up' : 'chevron-down'} 
+                                  onPress={toggleDestMenuVisibility}
+                                  color="#1976d2"
+                                />
+                              }
+                              style={styles.input}
+                              theme={{ colors: { primary: '#1976d2' } }}
+                            />
+                          </Pressable>
+                        }
+                        contentStyle={styles.menuContent}
+                      >
+                        <ScrollView style={styles.dropdownScroll}>
+                          {destinationOptions.map((destination, index) => (
+                            <Menu.Item
+                              key={index}
+                              onPress={() => handleDestinationChange(destination)}
+                              title={destination}
+                              titleStyle={styles.menuItemText}
+                              style={styles.menuItem}
+                            />
+                          ))}
+                        </ScrollView>
+                      </Menu>
+  
+                      {/* Direction indicator */}
+                      {destinationOptions.length === 2 && (
+                        <View style={styles.directionContainer}>
+                          <Text style={styles.directionText}>
+                            Direction: {isReversed ? destinationOptions[1] : destinationOptions[0]} → {selectedDestination}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </>
+              )}
+            </View>
+              
             {/* Current City Display */}
             {isTracking && currentCity && (
-              <View style={styles.currentCityContainer}>
-                <Text style={styles.subHeading}>Current Location</Text>
-                <Text style={styles.currentCityText}>Near: {currentCity}</Text>
+              <View style={styles.cardContainer}>
+                <Text style={styles.cardTitle}>Current Location</Text>
+                <View style={styles.locationContainer}>
+                  <Text style={styles.currentCityText}>Near: {currentCity}</Text>
+                </View>
               </View>
             )}
-            
+              
             {/* Start Ride Section */}
-            <Text style={styles.heading}>Click the Below Button to Start the Ride</Text>
-            <Pressable 
-              style={[
-                styles.circleButton, 
-                isTracking ? styles.activeButton : styles.startButton,
-                (!selectedRoute || !selectedDestination) ? styles.disabledButton : null
-              ]}
-              onPress={startRide}
-              disabled={isTracking || !selectedRoute || !selectedDestination}
-            >
-              <Text style={styles.buttonText}>
-                {isTracking ? 'Started' : 'Start'}
-              </Text>
-            </Pressable>
-
-            {/* Display note about required selections if button is disabled */}
-            {(!selectedRoute || !selectedDestination) && !isTracking && (
-              <Text style={styles.requirementText}>
-                Please select both route and destination to start the ride.
-              </Text>
-            )}
-
-            {/* Tracking Status */}
-            {isTracking && (
-              <Text style={styles.statusText}>
-                Status: Tracking - Location is being shared
-              </Text>
-            )}
-
+            <View style={styles.cardContainer}>
+              <Text style={styles.cardTitle}>Start Your Ride</Text>
+              <Pressable 
+                style={[
+                  styles.circleButton, 
+                  isTracking ? styles.activeButton : styles.startButton,
+                  (!selectedRoute || !selectedDestination) ? styles.disabledButton : null
+                ]}
+                onPress={startRide}
+                disabled={isTracking || !selectedRoute || !selectedDestination}
+              >
+                <Text style={styles.buttonText}>
+                  {isTracking ? 'Started' : 'Start'}
+                </Text>
+              </Pressable>
+  
+              {/* Display note about required selections if button is disabled */}
+              {(!selectedRoute || !selectedDestination) && !isTracking && (
+                <Text style={styles.requirementText}>
+                  Please select both route and destination to start the ride.
+                </Text>
+              )}
+  
+              {/* Tracking Status */}
+              {isTracking && (
+                <View style={styles.statusContainer}>
+                  <Text style={styles.statusText}>
+                    Status: Tracking - Location is being shared
+                  </Text>
+                </View>
+              )}
+            </View>
+  
             {/* Cancel Ride Section */}
-            <Text style={styles.heading}>Click Below Button to Cancel the Ride</Text>
-            <Text style={styles.warning}>
-              You are not allowed to cancel the ride unless the bus faces any 
-              (accidents, tire puncture, or technical failure) that causes the bus not to move.
-            </Text>
-            <Pressable 
-              style={[
-                styles.circleButton, 
-                styles.cancelButton,
-                !isTracking ? styles.disabledButton : null
-              ]}
-              onPress={cancelRide}
-              disabled={!isTracking}
-            >
-              <Text style={styles.buttonText}>Cancel</Text>
-            </Pressable>
+            <View style={styles.cardContainer}>
+              <Text style={styles.cardTitle}>Cancel Your Ride</Text>
+              <View style={styles.warningContainer}>
+                <Text style={styles.warningText}>
+                  You are not allowed to cancel the ride unless the bus faces any 
+                  (accidents, tire puncture, or technical failure) that causes the bus not to move.
+                </Text>
+              </View>
+              <Pressable 
+                style={[
+                  styles.circleButton, 
+                  styles.cancelButton,
+                  !isTracking ? styles.disabledButton : null
+                ]}
+                onPress={cancelRide}
+                disabled={!isTracking}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </Pressable>
+            </View>
           </View>
         </ScrollView>
       </SafeAreaView>
     </Provider>
   );
-};
-
-
-export default DriverRideStartCancel;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    paddingHorizontal: '5%',
-    paddingBottom: '5%',
-  },
-  centeredContent: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  plateNumber: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: 20,
-    color: '#2196F3',
-  },
-  loadingText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginVertical: 20,
-    color: '#666',
-  },
-  input: {
-    marginVertical: 10,
-    width: '100%',
-  },
-  menuContent: {
-    maxWidth: '100%',
-    paddingHorizontal: 10,
-  },
-  menuItem: {
-    paddingHorizontal: 10,
-    justifyContent: 'center',
-  },
-  heading: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 20,
-  },
-  subHeading: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: 15,
-    marginBottom: 5,
-  },
-  destinationContainer: {
-    marginVertical: 10,
-  },
-  directionText: {
-    fontSize: 14,
-    color: '#2196F3',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  warning: {
-    fontSize: 14,
-    color: 'red',
-    textAlign: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 10,
-  },
-  requirementText: {
-    fontSize: 14,
-    color: '#FF9800',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  circleButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 10,
-    alignSelf: 'center',
-  },
-  startButton: {
-    backgroundColor: '#4caf50', // Green
-  },
-  activeButton: {
-    backgroundColor: '#2e7d32', // Darker Green
-  },
-  cancelButton: {
-    backgroundColor: '#f44336', // Red
-  },
-  disabledButton: {
-    backgroundColor: '#9e9e9e', // Gray
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  statusText: {
-    fontSize: 14,
-    color: '#4caf50',
-    textAlign: 'center',
-    marginVertical: 10,
-  }
-});
+  };
+  
+  
+  export default DriverRideStartCancel;
+  
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: '#f5f8fb',
+    },
+    scrollContainer: {
+      flexGrow: 1,
+      paddingHorizontal: 16,
+      paddingBottom: 20,
+    },
+    centeredContent: {
+      flex: 1,
+      paddingTop: 12,
+    },
+    headerContainer: {
+      backgroundColor: '#1976d2',
+      padding: 16,
+      borderRadius: 8,
+      marginBottom: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    plateNumber: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      textAlign: 'center',
+      color: '#ffffff',
+    },
+    cardContainer: {
+      backgroundColor: '#ffffff',
+      borderRadius: 8,
+      padding: 16,
+      marginBottom: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    cardTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#1976d2',
+      textAlign: 'center',
+      marginBottom: 16,
+      textShadowColor: 'rgba(25, 118, 210, 0.15)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
+    },
+    loadingContainer: {
+      padding: 12,
+      alignItems: 'center',
+    },
+    loadingText: {
+      fontSize: 16,
+      textAlign: 'center',
+      color: '#757575',
+    },
+    inputContainer: {
+      marginVertical: 8,
+      width: '100%',
+    },
+    input: {
+      backgroundColor: '#ffffff',
+    },
+    menuContent: {
+      maxWidth: '90%',
+      marginHorizontal: '5%',
+      backgroundColor: '#ffffff',
+      borderRadius: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.1,
+      shadowRadius: 5,
+      elevation: 4,
+    },
+    dropdownScroll: {
+      maxHeight: 150,
+    },
+    menuItem: {
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    menuItemText: {
+      color: '#1976d2',
+      fontSize: 15,
+    },
+    disabledMenuText: {
+      color: '#9e9e9e',
+      fontSize: 15,
+    },
+    subHeading: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#757575',
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    destinationSection: {
+      marginTop: 12,
+    },
+    directionContainer: {
+      marginTop: 8,
+      padding: 8,
+      backgroundColor: 'rgba(25, 118, 210, 0.05)',
+      borderRadius: 4,
+    },
+    directionText: {
+      fontSize: 14,
+      color: '#1976d2',
+      textAlign: 'center',
+    },
+    locationContainer: {
+      padding: 12,
+      backgroundColor: 'rgba(25, 118, 210, 0.05)',
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    currentCityText: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: '#1976d2',
+    },
+    warningContainer: {
+      padding: 12,
+      backgroundColor: 'rgba(244, 67, 54, 0.05)',
+      borderRadius: 8,
+      marginBottom: 16,
+    },
+    warningText: {
+      fontSize: 14,
+      color: '#f44336',
+      textAlign: 'center',
+    },
+    requirementText: {
+      fontSize: 14,
+      color: '#FF9800',
+      textAlign: 'center',
+      marginTop: 12,
+    },
+    circleButton: {
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginVertical: 16,
+      alignSelf: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 5,
+      elevation: 5,
+    },
+    startButton: {
+      backgroundColor: '#2196F3',
+    },
+    activeButton: {
+      backgroundColor: '#1976d2',
+    },
+    cancelButton: {
+      backgroundColor: '#f44336',
+    },
+    disabledButton: {
+      backgroundColor: '#9e9e9e',
+      opacity: 0.7,
+      shadowOpacity: 0.1,
+    },
+    buttonText: {
+      color: '#ffffff',
+      fontSize: 18,
+      fontWeight: 'bold',
+    },
+    statusContainer: {
+      marginTop: 12,
+      padding: 10,
+      backgroundColor: 'rgba(76, 175, 80, 0.1)',
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    statusText: {
+      fontSize: 14,
+      color: '#4caf50',
+      fontWeight: '500',
+    }
+  });
