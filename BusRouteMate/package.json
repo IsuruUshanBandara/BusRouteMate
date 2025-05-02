@@ -34,7 +34,8 @@
     "react-native-star-rating": "^1.1.0",
     "react-native-svg": "15.8.0",
     "react-native-ui-lib": "^7.32.0",
-    "uuid": "^11.0.2"
+    "uuid": "^11.0.2",
+    "@expo/vector-icons": "^14.0.2"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

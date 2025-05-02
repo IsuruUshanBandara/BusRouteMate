@@ -1,13 +1,16 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet,View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import * as React from 'react';
 import { Card, Text } from 'react-native-paper';
-import { useRouter,useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+
 const OrganizationCategories = () =>  {
   const router = useRouter();
   const { category } = useLocalSearchParams();
-   // Conditional navigation based on the category
-   const handleCardPress = (orgType) => {
+  
+  // Conditional navigation based on the category
+  const handleCardPress = (orgType) => {
     if (category === 'driver') {
       // Navigate to driver-specific screens and pass category
       router.push({
@@ -23,69 +26,141 @@ const OrganizationCategories = () =>  {
     } else {
       console.error('Invalid category'); // Handle unexpected cases
     }
-   };
+  };
+
   return (
     <View style={styles.container}>
+      
       <View style={styles.subHeadingContainer}>
-      <Text style={styles.subheading}>Select your bus organization</Text>
+        <Text style={styles.mainTitle}>Bus Organizations</Text>
+        <Text style={styles.subheading}>Please select your organization type</Text>
       </View>
       <View style={styles.cardsContainer}>
-      {/* SLTB bus sing in card */}
-      <Card style={styles.card} onPress={() => handleCardPress('sltb')}>
-        <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="SLTB Organization" subtitle="Sign in/Sign up" />
-      </Card>
+        {/* SLTB bus sign in card */}
+        <Card 
+          style={[styles.card, styles.sltbCard]} 
+          onPress={() => handleCardPress('sltb')}
+          mode="elevated"
+        >
+          <Card.Content style={styles.cardContent}>
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>SLTB Organization</Text>
+              <View style={styles.titleUnderline} />
+            </View>
+            <Text style={styles.subtitle}>Sign in/Sign up</Text>
+          </Card.Content>
+        </Card>
 
-      {/* Private bus sign in card */}
-      <Card style={styles.card} onPress={() => handleCardPress('private')}>
-        <Card.Title titleStyle={styles.title} subtitleStyle={styles.subtitle} title="Private Organization" subtitle="Sign in/Sign up" />
-      </Card>
+        {/* Private bus sign in card */}
+        <Card 
+          style={[styles.card, styles.privateCard]} 
+          onPress={() => handleCardPress('private')}
+          mode="elevated"
+        >
+          <Card.Content style={styles.cardContent}>
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>Private Organization</Text>
+              <View style={styles.titleUnderline} />
+            </View>
+            <Text style={styles.subtitle}>Sign in/Sign up</Text>
+          </Card.Content>
+        </Card>
       </View>
     </View>
   );
 };
+
 export default OrganizationCategories;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    // alignItems: 'center',
-    // justifyContent: 'center',
     padding: '3%', // adds padding around the container to avoids the cards edges touching the screen edges
   },
   subHeadingContainer: {
-    flex:0.2,// Pushes the subheading towards the top
-    justifyContent: 'flex-end',// Aligns subheading to the bottom of this container
+    flex: 0.2, // Pushes the subheading towards the top
+    justifyContent: 'flex-end', // Aligns subheading to the bottom of this container
+    alignItems: 'center',
+  },
+  mainTitle: {
+    fontSize: 30,
+    fontWeight: 'bold',
+    color: '#1976d2',
+    textAlign: 'center',
+    textShadowColor: 'rgba(25, 118, 210, 0.15)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   subheading: {
-    fontSize: 24, // Fnt size of the subheading
-    fontWeight: 'bold', // Bold subheading
-    // marginBottom: '16%', // Space between subheading and cards
+    fontSize: 18,
+    color: '#757575',
     textAlign: 'center',
+    marginTop: 8,
   },
   cardsContainer: {
-    flex: 1,// Center the cards
-    justifyContent: 'center',// Vertically centers the content
+    flex: 1, // Center the cards
+    justifyContent: 'center', // Vertically centers the content
     width: '100%', // Full width
   },
   card: {
-    width: '100%', // Full width
-    marginVertical: '5%', // Vertical spacing between cards
-    elevation: 4, // Adds shadow effect on Android
-    borderRadius: 10, // Rounded corners
-    height: '17%', // Card height
-    justifyContent: 'center', // Centers the content vertically
-    // flexDirection: 'column', // Arranges the content in a column
+    width: '90%',
+    marginVertical: '4%',
+    elevation: 6,
+    borderRadius: 16,
+    height: '17%',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  sltbCard: {
+    backgroundColor: '#e3f2fd',
+    borderLeftWidth: 1,
+    borderLeftColor: '#1976d2',
+    borderRightColor: '#1976d2',
+    borderRightWidth: 1,
+    borderBottomColor: '#1976d2',
+    borderBottomWidth: 1,
+    borderTopColor: '#1976d2',
+    borderTopWidth: 1,
+  },
+  privateCard: {
+    backgroundColor: '#e3f2fd',
+    borderLeftWidth: 1,
+    borderLeftColor: '#1976d2',
+    borderRightColor: '#1976d2',
+    borderRightWidth: 1,
+    borderBottomColor: '#1976d2',
+    borderBottomWidth: 1,
+    borderTopColor: '#1976d2',
+    borderTopWidth: 1,
+  },
+  cardContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleContainer: {
+    alignItems: 'center',
+    width: '100%',
   },
   title: {
-    // color: '#6200ee', // Title color
-    textAlign: 'center', // Centers the title
-    
+    fontSize: 22,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#1976d2',
+    letterSpacing: 0.5,
+  },
+  titleUnderline: {
+    height: 2,
+    width: '50%',
+    backgroundColor: '#1976d2',
+    marginTop: 4,
+    marginBottom: 6,
+    borderRadius: 2,
   },
   subtitle: {
-    // color: '#6200ee', // Subtitle color
-    textAlign: 'center', // Centers the subtitle
-    
-    
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#757575',
+    marginTop: 4,
   },
 });
