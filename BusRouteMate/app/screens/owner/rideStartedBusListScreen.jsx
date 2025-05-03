@@ -128,7 +128,7 @@ const ViewActiveRoutesScreen = () => {
             key={busRoute.fullRouteId} 
             style={styles.card} 
             onPress={() => router.push({
-              pathname: `screens/owner/rideTrackingScreen`,
+              pathname: `screens/owner/driverTrackingMap`,
               params: { 
                 busPlate: busRoute.plateNumber,
                 routeId: busRoute.fullRouteId // Pass the full route ID
