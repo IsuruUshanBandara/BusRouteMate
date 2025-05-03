@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from 'react-native';
-import { TextInput, Button } from 'react-native-paper';
+import { TextInput, Button, HelperText } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { auth } from '../../db/firebaseConfig';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { LogBox } from 'react-native';
+
+// Suppress Firebase auth error messages that appear from the bottom
+LogBox.ignoreLogs(['firebase/wrong-password', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email', 'auth/too-many-requests','Error (auth/invalid-credential)']);
 import { LinearGradient } from 'expo-linear-gradient';
 
 const PrivateBusSignIn = () => {
@@ -12,13 +16,28 @@ const PrivateBusSignIn = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [emailError, setEmailError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [generalError, setGeneralError] = useState('');
     const { t } = useTranslation();
 
     const handleSignIn = () => {
-        if (!email ||!password) {
-            console.error('All fields are required.');
+        // Reset previous errors
+        setEmailError('');
+        setPasswordError('');
+        setGeneralError('');
+
+        // Validation
+        if (!email) {
+            setEmailError(t('Email is required'));
             return;
         }
+        
+        if (!password) {
+            setPasswordError(t('Password is required'));
+            return;
+        }
+
         signInWithEmailAndPassword(auth, email, password)
             .then((userCredential) => { 
                 const user = userCredential.user;
@@ -26,6 +45,28 @@ const PrivateBusSignIn = () => {
                 router.push('../../screens/owner/ownerHome');
             }).catch((error) => {
                 console.error("Error signing user:", error.message);
+                
+                // Handle specific Firebase Auth errors
+                switch (error.code) {
+                    case 'auth/invalid-email':
+                        setEmailError(t('Invalid email address format'));
+                        break;
+                    case 'auth/user-not-found':
+                        setEmailError(t('No account found with this email'));
+                        break;
+                    case 'auth/invalid-credential':
+                        setPasswordError(t('Incorrect password'));
+                        break;
+                    case 'auth/too-many-requests':
+                        setGeneralError(t('Too many failed attempts. Please try again later'));
+                        break;
+                    case 'auth/network-request-failed':
+                        setGeneralError(t('Network error. Please check your connection'));
+                        break;
+                    default:
+                        setGeneralError(t('Sign in failed. Please try again'));
+                        break;
+                }
             });
     };
 
@@ -49,37 +90,61 @@ const PrivateBusSignIn = () => {
                             <View style={styles.formContainer}>
                                 <Text style={styles.subHeading}>{t('signIn')}</Text>
 
+                                {generalError ? (
+                                    <View style={styles.generalErrorContainer}>
+                                        <Text style={styles.generalErrorText}>{generalError}</Text>
+                                    </View>
+                                ) : null}
+
                                 <TextInput
                                     style={styles.input}
                                     label={t('email')}
                                     value={email}
-                                    onChangeText={text => setEmail(text)}
+                                    onChangeText={text => {
+                                        setEmail(text);
+                                        setEmailError(''); // Clear error when typing
+                                    }}
                                     mode='outlined'
-                                    outlineColor="#1976d2"
-                                    activeOutlineColor="#1976d2"
-                                    theme={{ colors: { primary: '#1976d2' } }}
-                                    left={<TextInput.Icon icon="email" color="#1976d2" />}
+                                    outlineColor={emailError ? "#FF0000" : "#1976d2"}
+                                    activeOutlineColor={emailError ? "#FF0000" : "#1976d2"}
+                                    theme={{ colors: { primary: emailError ? "#FF0000" : "#1976d2" } }}
+                                    left={<TextInput.Icon icon="email" color={emailError ? "#FF0000" : "#1976d2"} />}
+                                    error={!!emailError}
                                 />
+                                {emailError ? (
+                                    <HelperText type="error" visible={!!emailError}>
+                                        {emailError}
+                                    </HelperText>
+                                ) : null}
 
                                 <TextInput
                                     style={styles.input}
                                     label={t('Password')}
                                     value={password}
-                                    onChangeText={text => setPassword(text)}
+                                    onChangeText={text => {
+                                        setPassword(text);
+                                        setPasswordError(''); // Clear error when typing
+                                    }}
                                     mode='outlined'
                                     secureTextEntry={!showPassword}
-                                    outlineColor="#1976d2"
-                                    activeOutlineColor="#1976d2"
-                                    theme={{ colors: { primary: '#1976d2' } }}
-                                    left={<TextInput.Icon icon="lock" color="#1976d2" />}
+                                    outlineColor={passwordError ? "#FF0000" : "#1976d2"}
+                                    activeOutlineColor={passwordError ? "#FF0000" : "#1976d2"}
+                                    theme={{ colors: { primary: passwordError ? "#FF0000" : "#1976d2" } }}
+                                    left={<TextInput.Icon icon="lock" color={passwordError ? "#FF0000" : "#1976d2"} />}
                                     right={
                                         <TextInput.Icon
                                             icon={showPassword ? 'eye-off' : 'eye'}
-                                            color="#1976d2"
+                                            color={passwordError ? "#FF0000" : "#1976d2"}
                                             onPress={() => setShowPassword(!showPassword)}
                                         />
                                     }
+                                    error={!!passwordError}
                                 />
+                                {passwordError ? (
+                                    <HelperText type="error" visible={!!passwordError}>
+                                        {passwordError}
+                                    </HelperText>
+                                ) : null}
                                 
                                 <TouchableOpacity onPress={() => router.push('owner/privateForgotPassword')}>
                                     <Text style={styles.forgotPassword}>{t('forgot password')}</Text>
@@ -174,7 +239,7 @@ const styles = StyleSheet.create({
         color: '#1976d2',
     },
     input: {
-        marginVertical: 10,
+        marginTop: 10,
         backgroundColor: 'white',
     },
     forgotPassword: {
@@ -208,4 +273,14 @@ const styles = StyleSheet.create({
         color: '#1976d2',
         fontWeight: '600',
     },
+    generalErrorContainer: {
+        backgroundColor: '#ffebee',
+        padding: 10,
+        borderRadius: 5,
+        marginBottom: 15,
+    },
+    generalErrorText: {
+        color: '#d32f2f',
+        textAlign: 'center',
+    }
 });

@@ -126,16 +126,20 @@ const DriverRideStartCancel = () => {
   }, [selectedRoute, licensePlateNumber]);
   
   const toggleMenuVisibility = () => {
-    setMenuVisible(!menuVisible);
+    if (!isTracking) {
+      setMenuVisible(!menuVisible);
+    }
   };
 
   const toggleDestMenuVisibility = () => {
-    setDestMenuVisible(!destMenuVisible);
+    if (!isTracking) {
+      setDestMenuVisible(!destMenuVisible);
+    }
   };
 
   // Handle destination change
   const handleDestinationChange = async (destination) => {
-    if (!routeData || !routeData.coordinates || !selectedRoute) return;
+    if (!routeData || !routeData.coordinates || !selectedRoute || isTracking) return;
     
     const originName = routeData.coordinates[0]?.name;
     const destName = routeData.coordinates[routeData.coordinates.length - 1]?.name;
@@ -197,7 +201,7 @@ const DriverRideStartCancel = () => {
       } else {
         setRouteData({
           ...routeData,
-          destination: { name: destination }
+          destination: destination
         });
       }
       
@@ -605,6 +609,20 @@ const DriverRideStartCancel = () => {
     return null;
   }
 
+  // Calculate direction indicator text
+  const getDirectionText = () => {
+    if (!routeData || !routeData.coordinates || destinationOptions.length !== 2) {
+      return "";
+    }
+  
+    // Since the actual array is physically reversed when isReversed is true,
+    // we should always use index 0 for origin and last index for destination
+    const originName = routeData.coordinates[0]?.name || '';
+    const destName = routeData.coordinates[routeData.coordinates.length - 1]?.name || '';
+    
+    return `Direction: ${originName} → ${destName}`;
+  };
+
   return (
     <Provider>
       <SafeAreaView style={styles.container}>
@@ -629,24 +647,32 @@ const DriverRideStartCancel = () => {
                     visible={menuVisible}
                     onDismiss={() => setMenuVisible(false)}
                     anchor={
-                      <Pressable onPress={toggleMenuVisibility} style={styles.inputContainer}>
+                      <Pressable 
+                        onPress={toggleMenuVisibility} 
+                        style={[
+                          styles.inputContainer,
+                          isTracking && styles.disabledInput
+                        ]}
+                        disabled={isTracking}
+                      >
                         <TextInput
                           label="Select your route"
                           value={selectedRoute || ""}
                           placeholder={!selectedRoute ? "Select a route" : ""}
                           mode="outlined"
                           editable={false}
-                          outlineColor="#1976d2"
-                          activeOutlineColor="#1976d2"
+                          outlineColor={isTracking ? "#9e9e9e" : "#1976d2"}
+                          activeOutlineColor={isTracking ? "#9e9e9e" : "#1976d2"}
                           right={
                             <TextInput.Icon 
                               icon={menuVisible ? 'chevron-up' : 'chevron-down'} 
                               onPress={toggleMenuVisibility}
-                              color="#1976d2" 
+                              color={isTracking ? "#9e9e9e" : "#1976d2"}
+                              disabled={isTracking}
                             />
                           }
                           style={styles.input}
-                          theme={{ colors: { primary: '#1976d2' } }}
+                          theme={{ colors: { primary: isTracking ? '#9e9e9e' : '#1976d2' } }}
                         />
                       </Pressable>
                     }
@@ -685,24 +711,32 @@ const DriverRideStartCancel = () => {
                         visible={destMenuVisible}
                         onDismiss={() => setDestMenuVisible(false)}
                         anchor={
-                          <Pressable onPress={toggleDestMenuVisibility} style={styles.inputContainer}>
+                          <Pressable 
+                            onPress={toggleDestMenuVisibility} 
+                            style={[
+                              styles.inputContainer,
+                              isTracking && styles.disabledInput
+                            ]}
+                            disabled={isTracking}
+                          >
                             <TextInput
                               label="Select destination"
                               value={selectedDestination || ""}
                               placeholder={!selectedDestination ? "Select a destination" : ""}
                               mode="outlined"
                               editable={false}
-                              outlineColor="#1976d2"
-                              activeOutlineColor="#1976d2"
+                              outlineColor={isTracking ? "#9e9e9e" : "#1976d2"}
+                              activeOutlineColor={isTracking ? "#9e9e9e" : "#1976d2"}
                               right={
                                 <TextInput.Icon 
                                   icon={destMenuVisible ? 'chevron-up' : 'chevron-down'} 
                                   onPress={toggleDestMenuVisibility}
-                                  color="#1976d2"
+                                  color={isTracking ? "#9e9e9e" : "#1976d2"}
+                                  disabled={isTracking}
                                 />
                               }
                               style={styles.input}
-                              theme={{ colors: { primary: '#1976d2' } }}
+                              theme={{ colors: { primary: isTracking ? '#9e9e9e' : '#1976d2' } }}
                             />
                           </Pressable>
                         }
@@ -721,11 +755,11 @@ const DriverRideStartCancel = () => {
                         </ScrollView>
                       </Menu>
   
-                      {/* Direction indicator */}
+                      {/* Direction indicator - Fixed to show correct origin and destination */}
                       {destinationOptions.length === 2 && (
                         <View style={styles.directionContainer}>
                           <Text style={styles.directionText}>
-                            Direction: {isReversed ? destinationOptions[1] : destinationOptions[0]} → {selectedDestination}
+                            {getDirectionText()}
                           </Text>
                         </View>
                       )}
@@ -805,7 +839,7 @@ const DriverRideStartCancel = () => {
       </SafeAreaView>
     </Provider>
   );
-  };
+};
   
   
   
@@ -826,7 +860,7 @@ const DriverRideStartCancel = () => {
       paddingTop: 12,
     },
     headerContainer: {
-      backgroundColor: '#1976d2',
+      backgroundColor: '#e3f2fd',
       padding: 16,
       borderRadius: 8,
       marginBottom: 16,
@@ -840,10 +874,10 @@ const DriverRideStartCancel = () => {
       fontSize: 18,
       fontWeight: 'bold',
       textAlign: 'center',
-      color: '#ffffff',
+      color: '#1976d2',
     },
     cardContainer: {
-      backgroundColor: '#ffffff',
+      backgroundColor: '#e3f2fd',
       borderRadius: 8,
       padding: 16,
       marginBottom: 16,

@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/vector-icons": "^14.0.2",
     "@react-native-async-storage/async-storage": "^1.23.1",
     "axios": "^1.7.7",
     "expo": "~52.0.7",
@@ -23,6 +24,7 @@
     "react-i18next": "^15.1.1",
     "react-native": "^0.76.2",
     "react-native-dotenv": "^3.4.11",
+    "react-native-dropdown-picker": "^5.4.6",
     "react-native-get-random-values": "^1.11.0",
     "react-native-gifted-charts": "^1.4.58",
     "react-native-google-places-autocomplete": "^2.5.7",
@@ -34,8 +36,7 @@
     "react-native-star-rating": "^1.1.0",
     "react-native-svg": "15.8.0",
     "react-native-ui-lib": "^7.32.0",
-    "uuid": "^11.0.2",
-    "@expo/vector-icons": "^14.0.2"
+    "uuid": "^11.0.2"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView, Platform, Pressable } from 'react-native';
-import React, { useState } from 'react';
-import { TextInput, Button, Menu, Provider, Avatar } from 'react-native-paper';
+import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView, Platform, Dimensions } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { TextInput, Button, Menu, Provider, Avatar, HelperText } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import {createUserWithEmailAndPassword} from 'firebase/auth';  
-import {auth,db} from'../../db/firebaseConfig'; 
+import { createUserWithEmailAndPassword } from 'firebase/auth';  
+import { auth, db } from '../../db/firebaseConfig'; 
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -18,13 +18,108 @@ const PassengerSignUp = () => {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [securityQuestion, setSecurityQuestion] = useState('');
     const [menuVisible, setMenuVisible] = useState(false);
+    const [formContainerWidth, setFormContainerWidth] = useState(Dimensions.get('window').width - 40);
+    
+    // Error states
+    const [errors, setErrors] = useState({
+        email: '',
+        phoneNumber: '',
+        password: '',
+        confirmPassword: '',
+        securityQuestion: '',
+        securityQuestionAns: '',
+        form: ''
+    });
+
+    // Reference for security question input to position the menu
+    const securityQuestionRef = useRef(null);
+
+    // Update width on orientation change
+    useEffect(() => {
+        const updateWidth = () => {
+            // Account for padding (20px on each side)
+            setFormContainerWidth(Dimensions.get('window').width - 40);
+        };
+        
+        const dimensionsListener = Dimensions.addEventListener('change', updateWidth);
+        
+        return () => {
+            dimensionsListener.remove();
+        };
+    }, []);
+
+    // Validation functions
+    const validateEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email) return 'Email is required';
+        if (!emailRegex.test(email)) return 'Please enter a valid email address';
+        return '';
+    };
+
+    const validatePhoneNumber = (phone) => {
+        if (!phone) return 'Phone number is required';
+        
+        // Check if phone starts with 0 or +
+        if (!(phone.startsWith('0') || phone.startsWith('+'))) {
+            return 'Phone number must start with 0 or +';
+        }
+        
+        // Remove non-digit characters except for + at the beginning
+        const digitsOnly = phone.replace(/^\+|\D/g, '$&').replace(/[^\d+]/g, '');
+        
+        // Check length (should be 10 digits excluding the + if present)
+        const digitCount = digitsOnly.startsWith('+') ? digitsOnly.length - 1 : digitsOnly.length;
+        if (digitCount !== 10) {
+            return 'Phone number must be 10 digits long';
+        }
+        
+        return '';
+    };
+
+    const validatePassword = (password) => {
+        if (!password) return 'Password is required';
+        if (password.length < 6) return 'Password must be at least 6 characters';
+        return '';
+    };
+
+    const validateConfirmPassword = (password, confirmPassword) => {
+        if (!confirmPassword) return 'Confirm password is required';
+        if (password !== confirmPassword) return 'Passwords do not match';
+        return '';
+    };
+
+    const validateSecurityQuestion = (question) => {
+        if (!question) return 'Security question is required';
+        return '';
+    };
+
+    const validateSecurityAnswer = (answer) => {
+        if (!answer) return 'Security answer is required';
+        return '';
+    };
+
+    // Form validation
+    const validateForm = () => {
+        const newErrors = {
+            email: validateEmail(email),
+            phoneNumber: validatePhoneNumber(phoneNumber),
+            password: validatePassword(password),
+            confirmPassword: validateConfirmPassword(password, confirmPassword),
+            securityQuestion: validateSecurityQuestion(securityQuestion),
+            securityQuestionAns: validateSecurityAnswer(securityQuestionAns),
+            form: ''
+        };
+
+        setErrors(newErrors);
+
+        // Check if there are any validation errors
+        return !Object.values(newErrors).some(error => error !== '');
+    };
 
     const handleSignUp = async () => {
-        if (!email || !password || !confirmPassword || !phoneNumber || !securityQuestion || !securityQuestionAns) {
-            return;
-        }
-
-        if (password !== confirmPassword) {
+        // Validate all fields before submitting
+        if (!validateForm()) {
+            setErrors(prev => ({...prev, form: 'Please fix the errors before submitting'}));
             return;
         }
 
@@ -48,21 +143,21 @@ const PassengerSignUp = () => {
                     createdAt: new Date(),
                 });
 
-                console.error("sucessfully created passenger account");
+                console.log("Successfully created passenger account");
                 router.push('passenger/passengerSignIn');
             }
         } catch (error) {
             console.error("Sign-up error:", error);
+            setErrors(prev => ({...prev, form: error.message || 'Failed to create account'}));
         }
     };
 
     const securityQuestions = [
-        "What is your mother's maiden name?",
-        "What was the name of your first pet?",
-        "What is the name of your hometown?",
-        "What was your first car model?",
-        "What is your favorite book?",
-        "What is your favorite color?"
+        "Name of your first pet?",
+        "Name of your hometown?",
+        "First car model?",
+        "Favorite book?",
+        "Favorite color?",
     ];
 
     const toggleMenuVisibility = () => {
@@ -94,43 +189,68 @@ const PassengerSignUp = () => {
                                     <Text style={styles.subHeadingText}>Passenger Registration</Text>
                                 </View>
 
-                                <View style={styles.formContainer}>
+                                <View 
+                                    style={styles.formContainer}
+                                    onLayout={(event) => {
+                                        const { width } = event.nativeEvent.layout;
+                                        setFormContainerWidth(width);
+                                    }}
+                                >
                                     <Text style={styles.formTitle}>Create Your Account</Text>
 
+                                    {errors.form ? <Text style={styles.errorText}>{errors.form}</Text> : null}
+
                                     <TextInput 
                                         style={styles.input}
-                                        label="Email"
+                                        label="Email *"
                                         value={email}
-                                        onChangeText={text => setEmail(text)}
+                                        onChangeText={text => {
+                                            setEmail(text);
+                                            setErrors(prev => ({...prev, email: validateEmail(text)}));
+                                        }}
                                         mode="outlined"
-                                        outlineColor="#1976d2"
-                                        activeOutlineColor="#1976d2"
+                                        outlineColor={errors.email ? '#ff5252' : '#1976d2'}
+                                        activeOutlineColor={errors.email ? '#ff5252' : '#1976d2'}
                                         theme={{ colors: { primary: '#1976d2' } }}
                                         left={<TextInput.Icon icon="email" color="#1976d2" />}
+                                        error={!!errors.email}
                                     />
+                                    {errors.email ? <HelperText type="error" visible={!!errors.email}>{errors.email}</HelperText> : null}
 
                                     <TextInput 
                                         style={styles.input}
-                                        label="Phone Number"
+                                        label="Phone Number *"
                                         value={phoneNumber}
-                                        onChangeText={text => setPhoneNumber(text)}
+                                        onChangeText={text => {
+                                            setPhoneNumber(text);
+                                            setErrors(prev => ({...prev, phoneNumber: validatePhoneNumber(text)}));
+                                        }}
                                         mode="outlined"
                                         keyboardType="phone-pad"
-                                        outlineColor="#1976d2"
-                                        activeOutlineColor="#1976d2"
+                                        outlineColor={errors.phoneNumber ? '#ff5252' : '#1976d2'}
+                                        activeOutlineColor={errors.phoneNumber ? '#ff5252' : '#1976d2'}
                                         theme={{ colors: { primary: '#1976d2' } }}
                                         left={<TextInput.Icon icon="phone" color="#1976d2" />}
+                                        error={!!errors.phoneNumber}
                                     />
+                                    {errors.phoneNumber ? <HelperText type="error" visible={!!errors.phoneNumber}>{errors.phoneNumber}</HelperText> : null}
 
                                     <TextInput 
                                         style={styles.input}
-                                        label="Password"
+                                        label="Password *"
                                         value={password}
-                                        onChangeText={text => setPassword(text)}
+                                        onChangeText={text => {
+                                            setPassword(text);
+                                            setErrors(prev => ({
+                                                ...prev, 
+                                                password: validatePassword(text),
+                                                confirmPassword: validateConfirmPassword(text, confirmPassword)
+                                            }));
+                                        }}
                                         mode="outlined"
                                         secureTextEntry={!showPassword}
-                                        outlineColor="#1976d2"
-                                        activeOutlineColor="#1976d2"
+                                        outlineColor={errors.password ? '#ff5252' : '#1976d2'}
+                                        activeOutlineColor={errors.password ? '#ff5252' : '#1976d2'}
                                         theme={{ colors: { primary: '#1976d2' } }}
                                         left={<TextInput.Icon icon="lock" color="#1976d2" />}
                                         right={
@@ -140,17 +260,22 @@ const PassengerSignUp = () => {
                                                 onPress={() => setShowPassword(!showPassword)} 
                                             />
                                         }
+                                        error={!!errors.password}
                                     />
+                                    {errors.password ? <HelperText type="error" visible={!!errors.password}>{errors.password}</HelperText> : null}
 
                                     <TextInput 
                                         style={styles.input}
-                                        label="Confirm Password"
+                                        label="Confirm Password *"
                                         value={confirmPassword}
-                                        onChangeText={text => setConfirmPassword(text)}
+                                        onChangeText={text => {
+                                            setConfirmPassword(text);
+                                            setErrors(prev => ({...prev, confirmPassword: validateConfirmPassword(password, text)}));
+                                        }}
                                         mode="outlined"
                                         secureTextEntry={!showConfirmPassword}
-                                        outlineColor="#1976d2"
-                                        activeOutlineColor="#1976d2"
+                                        outlineColor={errors.confirmPassword ? '#ff5252' : '#1976d2'}
+                                        activeOutlineColor={errors.confirmPassword ? '#ff5252' : '#1976d2'}
                                         theme={{ colors: { primary: '#1976d2' } }}
                                         left={<TextInput.Icon icon="lock-check" color="#1976d2" />}
                                         right={
@@ -160,22 +285,26 @@ const PassengerSignUp = () => {
                                                 onPress={() => setShowConfirmPassword(!showConfirmPassword)} 
                                             />
                                         }
+                                        error={!!errors.confirmPassword}
                                     />
+                                    {errors.confirmPassword ? <HelperText type="error" visible={!!errors.confirmPassword}>{errors.confirmPassword}</HelperText> : null}
 
-                                    {/* Security Question Selection */}
-                                    <Menu
-                                        visible={menuVisible}
-                                        onDismiss={() => setMenuVisible(false)}
-                                        anchor={
-                                            <Pressable onPress={toggleMenuVisibility} style={styles.input}>
+                                    {/* Security Question Selection - WITH SCROLLABLE MENU */}
+                                    <View style={styles.securityQuestionContainer}>
+                                        <Menu
+                                            visible={menuVisible}
+                                            onDismiss={() => setMenuVisible(false)}
+                                            anchor={
                                                 <TextInput
-                                                    label="Security Question"
-                                                    value={securityQuestion || ""}
-                                                    placeholder={!securityQuestion ? "Select a security question" : ""}
+                                                    style={styles.input}
+                                                    label="Security Question *"
+                                                    value={securityQuestion}
+                                                    placeholder="Select a security question"
                                                     mode="outlined"
                                                     editable={false}
-                                                    outlineColor="#1976d2"
-                                                    activeOutlineColor="#1976d2"
+                                                    onPress={toggleMenuVisibility}
+                                                    outlineColor={errors.securityQuestion ? '#ff5252' : '#1976d2'}
+                                                    activeOutlineColor={errors.securityQuestion ? '#ff5252' : '#1976d2'}
                                                     theme={{ colors: { primary: '#1976d2' } }}
                                                     left={<TextInput.Icon icon="shield-account" color="#1976d2" />}
                                                     right={
@@ -185,37 +314,51 @@ const PassengerSignUp = () => {
                                                             onPress={toggleMenuVisibility} 
                                                         />
                                                     }
+                                                    error={!!errors.securityQuestion}
                                                 />
-                                            </Pressable>
-                                        }
-                                        contentStyle={[styles.menuContent, { width: '100%' }]}
-                                    >
-                                        <ScrollView style={{ maxHeight: 150 }}>
-                                            {securityQuestions.map((question, index) => (
-                                                <Menu.Item
-                                                    key={index}
-                                                    onPress={() => {
-                                                        setSecurityQuestion(question);
-                                                        setMenuVisible(false);
-                                                    }}
-                                                    title={question}
-                                                    style={styles.menuItem}
-                                                />
-                                            ))}
-                                        </ScrollView>
-                                    </Menu>
+                                            }
+                                            contentStyle={[styles.menuContent, { width: formContainerWidth - 40 }]}
+                                        >
+                                            <ScrollView 
+                                                style={styles.menuScrollView}
+                                                showsVerticalScrollIndicator={true}
+                                                persistentScrollbar={true}
+                                                nestedScrollEnabled={true}
+                                            >
+                                                {securityQuestions.map((question, index) => (
+                                                    <Menu.Item
+                                                        key={index}
+                                                        onPress={() => {
+                                                            setSecurityQuestion(question);
+                                                            setErrors(prev => ({...prev, securityQuestion: ''}));
+                                                            setMenuVisible(false);
+                                                        }}
+                                                        title={question}
+                                                        style={styles.menuItem}
+                                                        titleStyle={styles.menuItemText}
+                                                    />
+                                                ))}
+                                            </ScrollView>
+                                        </Menu>
+                                        {errors.securityQuestion ? <HelperText type="error" visible={!!errors.securityQuestion}>{errors.securityQuestion}</HelperText> : null}
+                                    </View>
 
                                     <TextInput 
                                         style={styles.input}
-                                        label="Answer to the Selected Security Question"
+                                        label="Answer to the Selected Security Question *"
                                         value={securityQuestionAns}
-                                        onChangeText={text => setSecurityQuestionAns(text)}
+                                        onChangeText={text => {
+                                            setSecurityQuestionAns(text);
+                                            setErrors(prev => ({...prev, securityQuestionAns: validateSecurityAnswer(text)}));
+                                        }}
                                         mode="outlined"
-                                        outlineColor="#1976d2"
-                                        activeOutlineColor="#1976d2"
+                                        outlineColor={errors.securityQuestionAns ? '#ff5252' : '#1976d2'}
+                                        activeOutlineColor={errors.securityQuestionAns ? '#ff5252' : '#1976d2'}
                                         theme={{ colors: { primary: '#1976d2' } }}
                                         left={<TextInput.Icon icon="key" color="#1976d2" />}
+                                        error={!!errors.securityQuestionAns}
                                     />
+                                    {errors.securityQuestionAns ? <HelperText type="error" visible={!!errors.securityQuestionAns}>{errors.securityQuestionAns}</HelperText> : null}
 
                                     <Button 
                                         mode="contained" 
@@ -308,18 +451,38 @@ const styles = StyleSheet.create({
         color: '#1976d2',
     },
     input: {
-        marginVertical: 8,
+        marginVertical: 6,
         width: '100%',
         backgroundColor: 'white',
     },
+    securityQuestionContainer: {
+        width: '100%',
+        position: 'relative',
+        zIndex: 100, // Increased z-index to ensure menu appears on top
+        marginBottom: 6,
+    },
+    menu: {
+        zIndex: 200, // Higher z-index than the container
+    },
     menuContent: {
-        maxWidth: '100%',
-        paddingHorizontal: 10,
         backgroundColor: 'white',
+        alignSelf: 'center',
+        maxHeight: 200, // Fixed height for the menu
+        paddingVertical: 0, // Remove default padding to maximize scroll space
+    },
+    menuScrollView: {
+        maxHeight: 200, // Match the menuContent maxHeight
+        flexGrow: 0, // Prevents ScrollView from expanding beyond maxHeight
     },
     menuItem: {
-        paddingHorizontal: 10,
-        justifyContent: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+    },
+    menuItemText: {
+        fontSize: 14,
+        color: '#333',
     },
     signUpButton: {
         marginTop: 20,
@@ -338,5 +501,11 @@ const styles = StyleSheet.create({
     },
     backButtonText: {
         color: '#1976d2',
+    },
+    errorText: {
+        color: '#ff5252',
+        textAlign: 'center',
+        marginBottom: 10,
+        fontWeight: '500',
     },
 });
