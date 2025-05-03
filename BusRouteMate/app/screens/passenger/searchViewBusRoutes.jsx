@@ -3,9 +3,11 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, Activit
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { GOOGLE_MAPS_API_KEY } from '@env';
 import { collection, getDocs, onSnapshot, doc } from 'firebase/firestore';
-import { db } from '../../db/firebaseConfig'; // Adjust this import according to your Firebase config file
+import { db } from '../../db/firebaseConfig';
+import { useRouter } from 'expo-router'; // Import useRouter for navigation
 
 const BusTrackingScreen = () => {
+  const router = useRouter(); // Initialize router
   const [location, setLocation] = useState('');
   const [destination, setDestination] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -78,6 +80,7 @@ const BusTrackingScreen = () => {
                 currentCity: routeData.currentCity,
                 licencePlate: routeData.licencePlateNum,
                 updatedAt: new Date(routeData.lastUpdated).toLocaleString(),
+                routeName: routeData.routeName || routeData.busRoute, // Get route name for navigation
               };
               
               results.push(resultItem);
@@ -180,6 +183,18 @@ const BusTrackingScreen = () => {
       console.error("Error formatting date:", e);
       return "Recently updated";
     }
+  };
+
+  // Navigate to map view when a bus card is pressed
+  const handleBusCardPress = (result) => {
+    router.push({
+      pathname: '/screens/passenger/busRouteMapView',
+      params: {
+        licencePlate: result.licencePlate,
+        routeName: result.routeName,
+        location: location // Pass the user's selected origin location
+      }
+    });
   };
 
   return (
@@ -297,9 +312,11 @@ const BusTrackingScreen = () => {
       <ScrollView style={styles.resultsContainer}>
         {searchResults.length > 0 ? (
           searchResults.map((result, index) => (
-            <View 
+            <TouchableOpacity 
               key={index} 
               style={styles.resultItem}
+              onPress={() => handleBusCardPress(result)}
+              activeOpacity={0.7}
             >
               <View style={styles.resultHeader}>
                 <Text style={styles.routeText}>{result.route}</Text>
@@ -322,7 +339,11 @@ const BusTrackingScreen = () => {
               <Text style={styles.updatedText}>
                 Last updated: {formatDate(result.updatedAt)}
               </Text>
-            </View>
+              
+              <View style={styles.viewMapButton}>
+                <Text style={styles.viewMapButtonText}>View on Map</Text>
+              </View>
+            </TouchableOpacity>
           ))
         ) : (
           !loading && !error && (
@@ -458,7 +479,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6b7280',
     marginTop: 4,
+    marginBottom: 10,
     fontStyle: 'italic'
+  },
+  viewMapButton: {
+    backgroundColor: '#e5e7eb',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 4,
+    alignSelf: 'flex-end'
+  },
+  viewMapButtonText: {
+    color: '#4b5563',
+    fontSize: 12,
+    fontWeight: '500'
   },
   noResultsText: {
     textAlign: 'center',
