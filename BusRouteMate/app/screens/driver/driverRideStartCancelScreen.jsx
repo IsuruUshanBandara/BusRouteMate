@@ -4,7 +4,7 @@ import { Menu, Provider, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { realtimeDb, db, auth } from '../../db/firebaseConfig';
-import { ref, set, serverTimestamp, remove, onValue } from 'firebase/database';
+import { ref, set, serverTimestamp, remove, onValue, off } from 'firebase/database';
 import { collection, query, where, getDocs, doc, updateDoc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as geolib from 'geolib'; // Import geolib for distance calculations
@@ -347,13 +347,26 @@ const DriverRideStartCancel = () => {
     setCityUpdateInterval(interval);
   };
 
-  // Clean up city tracking interval
+  // Improved cleanupCityTracking function with more cleanup
   const cleanupCityTracking = () => {
+    // Clear interval
     if (cityUpdateInterval) {
       clearInterval(cityUpdateInterval);
       setCityUpdateInterval(null);
       console.log('City tracking interval cleared');
     }
+    
+    // Remove any realtime database listeners for the trip
+    const tripId = selectedRoute ? `${licensePlateNumber}-${selectedRoute}` : null;
+    if (tripId) {
+      const locationRef = ref(realtimeDb, `/locations/${tripId}`);
+      // Detach all listeners from this reference
+      off(locationRef);
+      console.log('Realtime database listeners removed');
+    }
+    
+    // Reset current city state
+    setCurrentCity(null);
   };
 
   // Update the status field and destination in both collections
@@ -470,35 +483,14 @@ const DriverRideStartCancel = () => {
     }
   };
 
-  // Stop location tracking
+  // Improved stopLocationTracking function
   const stopLocationTracking = async () => {
-    const tripId = selectedRoute ? `${licensePlateNumber}-${selectedRoute}` : null;
-    
-    if (!tripId) return;
-    
-    // Update status to canceled in database
-    const locationRef = ref(realtimeDb, `/locations/${tripId}`);
-    set(locationRef, {
-      status: 'canceled',
-      timestamp: serverTimestamp(),
-      licensePlate: licensePlateNumber,
-      selectedRoute: selectedRoute,
-      isReversed: isReversed,
-      selectedDestination: selectedDestination
-    }).catch(error => {
-      console.error('Error updating status in database:', error);
-    });
-    
     // Remove the subscription if it exists
     if (locationSubscription) {
-      locationSubscription.remove();
+      await locationSubscription.remove();
       setLocationSubscription(null);
+      console.log('Location subscription removed');
     }
-    
-    // Clean up city tracking
-    cleanupCityTracking();
-    
-    console.log('Location tracking and city tracking stopped');
   };
 
   // Clean up subscription on unmount
@@ -536,6 +528,52 @@ const DriverRideStartCancel = () => {
     }
   };
 
+  // Improved cancelRide function
+  const cancelRide = async () => {
+    try {
+      // First stop all tracking services before updating route status
+      // Stop location tracking
+      await stopLocationTracking();
+      
+      // Stop city tracking
+      cleanupCityTracking();
+      
+      // Remove realtime database listeners
+      const tripId = selectedRoute ? `${licensePlateNumber}-${selectedRoute}` : null;
+      if (tripId) {
+        const locationRef = ref(realtimeDb, `/locations/${tripId}`);
+        // Detach all listeners from this reference
+        off(locationRef);
+        
+        // Update status to canceled in database
+        await set(locationRef, {
+          status: 'canceled',
+          timestamp: serverTimestamp(),
+          licensePlate: licensePlateNumber,
+          selectedRoute: selectedRoute,
+          isReversed: isReversed,
+          selectedDestination: selectedDestination,
+          currentCity: currentCity || null
+        });
+        
+        console.log('Location tracking stopped and database updated to canceled status');
+      }
+      
+      // Update route status in both collections
+      await updateRouteStatus(false);
+      
+      // Reset tracking state
+      setIsTracking(false);
+      setCurrentCity(null);
+      
+      // Show confirmation to user
+      Alert.alert("Success", "Ride has been canceled successfully.");
+    } catch (error) {
+      console.error("Error canceling ride:", error);
+      Alert.alert("Error", "Failed to cancel the ride. Please try again.");
+    }
+  };
+
   const startRide = async () => {
     if (!selectedRoute) {
       Alert.alert("Error", "Please select a route before starting the ride.");
@@ -559,22 +597,6 @@ const DriverRideStartCancel = () => {
     } catch (error) {
       console.error("Error starting ride:", error);
       Alert.alert("Error", "Failed to start the ride. Please try again.");
-    }
-  };
-
-  const cancelRide = async () => {
-    try {
-      // Update route status in both collections
-      await updateRouteStatus(false);
-      
-      // Stop tracking location
-      await stopLocationTracking();
-      
-      // Update tracking state
-      setIsTracking(false);
-    } catch (error) {
-      console.error("Error canceling ride:", error);
-      Alert.alert("Error", "Failed to cancel the ride. Please try again.");
     }
   };
 
@@ -784,6 +806,7 @@ const DriverRideStartCancel = () => {
     </Provider>
   );
   };
+  
   
   
   export default DriverRideStartCancel;
