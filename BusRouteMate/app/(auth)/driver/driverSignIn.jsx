@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from 'react-native';
-import { TextInput, Button } from 'react-native-paper';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from 'react-native';
+import { TextInput, Button, HelperText } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { auth } from '../../db/firebaseConfig';
+import { auth, db } from '../../db/firebaseConfig';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { getDoc, doc } from 'firebase/firestore';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const DriverSignIn = () => {
@@ -14,26 +15,102 @@ const DriverSignIn = () => {
     const [email, setEmail] = useState('');
     const [driverPassword, setDriverPassword] = useState('');
     const [showDriverPassword, setShowDriverPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
     const { t } = useTranslation();
 
-    const handleSignIn = () => {
-        if (!email || !licensePlateNumber || !driverPassword) {
-            console.error('All fields are required.');
+    // Validation states
+    const [emailError, setEmailError] = useState('');
+    const [licensePlateError, setLicensePlateError] = useState('');
+
+    // Validate email
+    const validateEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email) {
+            setEmailError(t('Email is required'));
+            return false;
+        } else if (!emailRegex.test(email)) {
+            setEmailError(t('Please enter a valid email address'));
+            return false;
+        } else {
+            setEmailError('');
+            return true;
+        }
+    };
+
+    // Validate license plate
+    const validateLicensePlate = (plate) => {
+        if (!plate) {
+            setLicensePlateError(t('License plate number is required'));
+            return false;
+        } else {
+            setLicensePlateError('');
+            return true;
+        }
+    };
+
+    const handleSignIn = async () => {
+        // Reset error message
+        setError('');
+        
+        // Validate inputs
+        const isEmailValid = validateEmail(email);
+        const isPlateValid = validateLicensePlate(licensePlateNumber);
+        
+        if (!isEmailValid || !isPlateValid || !driverPassword) {
+            if (!driverPassword) {
+                setError(t('Password is required'));
+            }
             return;
         }
 
-        signInWithEmailAndPassword(auth, email, driverPassword)
-            .then((userCredential) => { 
-                const user = userCredential.user;
-                console.log("Driver signed in successfully:", user);
-                router.push({ 
-                    pathname: '../../screens/driver/driverRideStartCancelScreen',
-                    params: { licensePlateNumber: licensePlateNumber }
-                });
-                
-            }).catch((error) => {
-                console.error("Error signing in driver:", error.message);
+        try {
+            setIsLoading(true);
+            
+            // Create document ID in format "licenseplate-email"
+            const docId = `${licensePlateNumber.trim()}-${email.trim().toLowerCase()}`;
+            
+            // Check if document exists in driverDetails collection
+            const driverDocRef = doc(db, "driverDetails", docId);
+            const driverDocSnap = await getDoc(driverDocRef);
+            
+            if (!driverDocSnap.exists()) {
+                setError(t('Driver with this license plate and email combination not found'));
+                setIsLoading(false);
+                return;
+            }
+            
+            // Document exists, proceed with authentication
+            const userCredential = await signInWithEmailAndPassword(auth, email, driverPassword);
+            const user = userCredential.user;
+            console.log("Driver signed in successfully:", user);
+            
+            // Navigate to driver home screen
+            router.push({ 
+                pathname: '../../screens/driver/driverRideStartCancelScreen',
+                params: { licensePlateNumber: licensePlateNumber }
             });
+            
+        } catch (error) {
+            console.error("Error signing in driver:", error.message);
+            
+            // Handle different Firebase Auth errors
+            switch (error.code) {
+                case 'auth/invalid-credential':
+                case 'auth/invalid-email':
+                case 'auth/user-not-found':
+                case 'auth/wrong-password':
+                    setError(t('Invalid email or password'));
+                    break;
+                case 'auth/too-many-requests':
+                    setError(t('Too many failed login attempts. Please try again later'));
+                    break;
+                default:
+                    setError(t('Failed to sign in. Please try again'));
+            }
+        } finally {
+            setIsLoading(false);
+        }
     };
     
     return (
@@ -60,27 +137,37 @@ const DriverSignIn = () => {
                                     style={styles.input}
                                     label={t('plate num')}
                                     value={licensePlateNumber}
-                                    onChangeText={text => setLicensePlateNumber(text)}
+                                    onChangeText={text => {
+                                        setLicensePlateNumber(text);
+                                        validateLicensePlate(text);
+                                    }}
                                     mode='outlined'
-                                    outlineColor="#1976d2"
+                                    outlineColor={licensePlateError ? "#B00020" : "#1976d2"}
                                     activeOutlineColor="#1976d2"
                                     theme={{ colors: { primary: '#1976d2' } }}
                                     left={<TextInput.Icon icon="card-text" color="#1976d2" />}
+                                    error={!!licensePlateError}
                                 />
+                                {!!licensePlateError && <HelperText type="error">{licensePlateError}</HelperText>}
 
                                 <TextInput
                                     style={styles.input}
                                     label={t('email')}
                                     value={email}
-                                    onChangeText={text => setEmail(text)}
+                                    onChangeText={text => {
+                                        setEmail(text);
+                                        validateEmail(text);
+                                    }}
                                     mode='outlined'
                                     keyboardType='email-address'
                                     autoCapitalize='none'
-                                    outlineColor="#1976d2"
+                                    outlineColor={emailError ? "#B00020" : "#1976d2"}
                                     activeOutlineColor="#1976d2"
                                     theme={{ colors: { primary: '#1976d2' } }}
                                     left={<TextInput.Icon icon="email" color="#1976d2" />}
+                                    error={!!emailError}
                                 />
+                                {!!emailError && <HelperText type="error">{emailError}</HelperText>}
 
                                 <TextInput
                                     style={styles.input}
@@ -102,14 +189,22 @@ const DriverSignIn = () => {
                                     }
                                 />
                                 
+                                {!!error && (
+                                    <View style={styles.errorContainer}>
+                                        <Text style={styles.errorText}>{error}</Text>
+                                    </View>
+                                )}
+                                
                                 <Button 
                                     mode='contained' 
                                     style={styles.signInButton} 
                                     labelStyle={styles.buttonText}
                                     onPress={handleSignIn}
+                                    loading={isLoading}
+                                    disabled={isLoading}
                                     buttonColor="#1976d2"
                                 >
-                                    {t('signIn')}
+                                    {isLoading ? t('Signing In...') : t('signIn')}
                                 </Button>
                             </View>
                         </View>
@@ -178,8 +273,20 @@ const styles = StyleSheet.create({
         color: '#1976d2',
     },
     input: {
-        marginVertical: 10,
+        marginVertical: 8,
         backgroundColor: 'white',
+    },
+    errorContainer: {
+        backgroundColor: '#FFEBEE',
+        padding: 10,
+        borderRadius: 5,
+        marginVertical: 10,
+        borderLeftWidth: 4,
+        borderLeftColor: '#B00020',
+    },
+    errorText: {
+        color: '#B00020',
+        fontSize: 14,
     },
     signInButton: {
         padding: 5,
