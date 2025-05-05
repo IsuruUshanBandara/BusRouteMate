@@ -4,7 +4,7 @@ import { TextInput, Button, IconButton, Card, Avatar, Divider, Portal, Dialog, P
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { auth, db } from '../../db/firebaseConfig';
 import { collection, doc, getDocs, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, deleteUser, getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { ActivityIndicator } from 'react-native';
 
 const EditDriverConductorDetails = () => {
@@ -28,6 +28,9 @@ const EditDriverConductorDetails = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [addingNewDriver, setAddingNewDriver] = useState(false);
+  const [deletePasswordPrompt, setDeletePasswordPrompt] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [driverToDelete, setDriverToDelete] = useState(null);
 
   useEffect(() => {
     const fetchDriverData = async () => {
@@ -46,6 +49,7 @@ const EditDriverConductorDetails = () => {
               conductorPhone: driverData.conductorPhone || '',
               createdAt: driverData.createdAt || new Date().toISOString(),
               licencePlateNum: driverData.licencePlateNum,
+              uid: driverData.uid || '', // Include Firebase Auth UID if available
               isNew: false
             });
           }
@@ -89,7 +93,10 @@ const EditDriverConductorDetails = () => {
   };
 
   const updateDriverField = (field, value) => {
-    setCurrentDriver({...currentDriver, [field]: value});
+    // Don't allow updating email field
+    if (field !== 'email') {
+      setCurrentDriver({...currentDriver, [field]: value});
+    }
   };
 
   const updateNewDriverField = (field, value) => {
@@ -103,87 +110,87 @@ const EditDriverConductorDetails = () => {
   const handleDeleteDriver = async (driver) => {
     Alert.alert(
       "Confirm Delete",
-      `Are you sure you want to remove this driver (${driver.email})?`,
+      `Are you sure you want to remove this driver (${driver.email})? This will delete both the driver record and their authentication account.`,
       [
         {text: "Cancel", style: "cancel"},
         {
           text: "Delete", 
           style: "destructive", 
-          onPress: async () => {
-            setLoading(true);
-            try {
-              // Delete driver document
-              await deleteDoc(doc(db, 'driverDetails', driver.id));
-              
-              // Update state
-              const updatedDrivers = drivers.filter(d => d.id !== driver.id);
-              setDrivers(updatedDrivers);
-              
-              Alert.alert("Success", "Driver removed successfully");
-            } catch (error) {
-              console.error("Error deleting driver:", error);
-              Alert.alert("Error", "Failed to delete driver");
-            } finally {
-              setLoading(false);
-            }
+          onPress: () => {
+            // Store the driver to delete and show password prompt
+            setDriverToDelete(driver);
+            setDeletePasswordPrompt(true);
           }
         }
       ]
     );
   };
 
-  const handleSaveDriver = async () => {
-    if (!currentDriver.phoneNum || !currentDriver.email) {
-      Alert.alert("Error", "Driver phone number and email are required");
+  const confirmDeleteDriverWithAuth = async () => {
+    if (!deletePassword || !driverToDelete) {
+      Alert.alert("Error", "Password is required to delete the driver account");
       return;
     }
 
     setLoading(true);
     try {
-      const emailChanged = currentDriver.email !== currentDriver.originalEmail;
+      // We need to save the owner's auth state to restore it later
+      const ownerAuth = auth.currentUser;
       
-      if (emailChanged) {
-        // Create new document with updated email
-        const newDocId = `${plateNumber}-${currentDriver.email}`;
-        
-        // Prepare the document data, ensuring all fields are present
-        const driverData = {
-          driverPhone: currentDriver.phoneNum,
-          driverEmail: currentDriver.email,
-          conductorPhone: currentDriver.conductorPhone || '',
-          licencePlateNum: plateNumber,
-          // Use current timestamp if createdAt doesn't exist
-          createdAt: currentDriver.createdAt || new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        
-        // First create the new document
-        await setDoc(doc(db, 'driverDetails', newDocId), driverData);
-        
-        // Then delete the old document
-        await deleteDoc(doc(db, 'driverDetails', currentDriver.id));
-        
-        // Update local state
-        const updatedDrivers = [...drivers];
-        updatedDrivers[currentIndex] = {
-          ...currentDriver,
-          id: newDocId,
-          originalEmail: currentDriver.email
-        };
-        setDrivers(updatedDrivers);
-      } else {
-        // Just update existing document
-        await updateDoc(doc(db, 'driverDetails', currentDriver.id), {
-          driverPhone: currentDriver.phoneNum,
-          conductorPhone: currentDriver.conductorPhone || '',
-          updatedAt: new Date().toISOString()
-        });
-        
-        // Update local state
-        const updatedDrivers = [...drivers];
-        updatedDrivers[currentIndex] = currentDriver;
-        setDrivers(updatedDrivers);
+      // Step 1: Sign in as the driver to get their auth token
+      const temporaryAuth = getAuth(); // Get a separate auth instance
+      await signInWithEmailAndPassword(temporaryAuth, driverToDelete.email, deletePassword);
+      
+      // Step 2: Delete the auth user
+      const driverUser = temporaryAuth.currentUser;
+      if (driverUser) {
+        await deleteUser(driverUser);
       }
+      
+      // Step 3: Delete driver document from Firestore
+      await deleteDoc(doc(db, 'driverDetails', driverToDelete.id));
+      
+      // Step 4: Update state
+      const updatedDrivers = drivers.filter(d => d.id !== driverToDelete.id);
+      setDrivers(updatedDrivers);
+      
+      // Reset states
+      setDeletePasswordPrompt(false);
+      setDeletePassword('');
+      setDriverToDelete(null);
+      
+      Alert.alert("Success", "Driver and their authentication account removed successfully");
+    } catch (error) {
+      console.error("Error deleting driver:", error);
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-login-credentials') {
+        Alert.alert("Error", "Incorrect password. Please try again.");
+      } else {
+        Alert.alert("Error", `Failed to delete driver: ${error.message}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveDriver = async () => {
+    if (!currentDriver.phoneNum) {
+      Alert.alert("Error", "Driver phone number is required");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Just update existing document - no email changes allowed
+      await updateDoc(doc(db, 'driverDetails', currentDriver.id), {
+        driverPhone: currentDriver.phoneNum,
+        conductorPhone: currentDriver.conductorPhone || '',
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Update local state
+      const updatedDrivers = [...drivers];
+      updatedDrivers[currentIndex] = currentDriver;
+      setDrivers(updatedDrivers);
       
       Alert.alert("Success", "Driver details updated successfully");
       setModalVisible(false);
@@ -220,7 +227,15 @@ const EditDriverConductorDetails = () => {
         return;
       }
       
-      // Create new driver document
+      // Step 1: Create Firebase Authentication account
+      const auth = getAuth();
+      const userCredential = await createUserWithEmailAndPassword(
+        auth, 
+        newDriver.email, 
+        newDriver.password
+      );
+      
+      // Step 2: Create new driver document in Firestore
       const newDocId = `${plateNumber}-${newDriver.email}`;
       const timestamp = new Date().toISOString();
       
@@ -230,7 +245,8 @@ const EditDriverConductorDetails = () => {
         conductorPhone: newDriver.conductorPhone || '',
         licencePlateNum: plateNumber,
         createdAt: timestamp,
-        updatedAt: timestamp
+        updatedAt: timestamp,
+        uid: userCredential.user.uid // Store the Firebase Auth UID for reference
       });
       
       // Add to local state
@@ -241,6 +257,7 @@ const EditDriverConductorDetails = () => {
         licencePlateNum: plateNumber,
         createdAt: timestamp,
         updatedAt: timestamp,
+        uid: userCredential.user.uid,
         isNew: false
       };
       setDrivers([...drivers, newDriverWithId]);
@@ -256,10 +273,24 @@ const EditDriverConductorDetails = () => {
       });
       
       setAddingNewDriver(false);
-      Alert.alert("Success", "New driver added successfully");
+      Alert.alert("Success", "New driver added successfully with authentication account");
     } catch (error) {
       console.error("Error adding new driver:", error);
-      Alert.alert("Error", `Failed to add new driver: ${error.message}`);
+      
+      // Handle specific Firebase Auth errors for better user feedback
+      switch(error.code) {
+        case 'auth/email-already-in-use':
+          Alert.alert("Error", "This email is already in use for authentication. Please use a different email.");
+          break;
+        case 'auth/invalid-email':
+          Alert.alert("Error", "The email address is not valid.");
+          break;
+        case 'auth/weak-password':
+          Alert.alert("Error", "The password is too weak. Please use a stronger password.");
+          break;
+        default:
+          Alert.alert("Error", `Failed to add new driver: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -455,12 +486,12 @@ const EditDriverConductorDetails = () => {
                   />
 
                   <TextInput
-                    style={styles.input}
-                    label="Driver Email*"
+                    style={[styles.input, styles.disabledInput]}
+                    label="Driver Email (Cannot be changed)"
                     value={currentDriver.email}
                     keyboardType='email-address'
                     autoCapitalize='none'
-                    onChangeText={text => updateDriverField('email', text)}
+                    disabled={true}
                     mode="outlined"
                   />
 
@@ -478,6 +509,53 @@ const EditDriverConductorDetails = () => {
             <Dialog.Actions>
               <Button onPress={() => setModalVisible(false)}>Cancel</Button>
               <Button onPress={handleSaveDriver} loading={loading} disabled={loading}>Save</Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
+
+        {/* Delete Authentication Dialog */}
+        <Portal>
+          <Dialog visible={deletePasswordPrompt} onDismiss={() => {
+            setDeletePasswordPrompt(false);
+            setDeletePassword('');
+            setDriverToDelete(null);
+          }}>
+            <Dialog.Title>Enter Driver Password</Dialog.Title>
+            <Dialog.Content>
+              <Text style={styles.dialogText}>
+                To delete the driver and their authentication account, please enter the driver's password:
+              </Text>
+              <TextInput
+                style={styles.input}
+                label="Password"
+                secureTextEntry={!showPassword}
+                right={
+                  <TextInput.Icon
+                    icon={showPassword ? "eye-off" : "eye"}
+                    onPress={() => setShowPassword(!showPassword)}
+                  />
+                }
+                value={deletePassword}
+                onChangeText={setDeletePassword}
+                mode="outlined"
+              />
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => {
+                setDeletePasswordPrompt(false);
+                setDeletePassword('');
+                setDriverToDelete(null);
+              }}>
+                Cancel
+              </Button>
+              <Button 
+                onPress={confirmDeleteDriverWithAuth} 
+                loading={loading} 
+                disabled={loading || !deletePassword}
+                textColor="#D32F2F"
+              >
+                Delete
+              </Button>
             </Dialog.Actions>
           </Dialog>
         </Portal>
@@ -545,11 +623,17 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     backgroundColor: '#fff',
   },
+  disabledInput: {
+    backgroundColor: '#f0f0f0',
+  },
   addButton: {
     marginTop: 24,
     marginBottom: 16,
     paddingVertical: 8,
   },
+  dialogText: {
+    marginBottom: 16,
+  }
 });
 
 export default EditDriverConductorDetails;
