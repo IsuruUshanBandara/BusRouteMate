@@ -199,11 +199,11 @@ const EditBusRouteMap = () => {
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
-        <IconButton
+        {/* <IconButton
           icon="arrow-left"
           size={24}
           onPress={() => router.back()}
-        />
+        /> */}
         <Text style={styles.heading}>Route Map Preview</Text>
       </View>
 
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginLeft: 10,
+    
     flex: 1,
   },
   infoContainer: {
