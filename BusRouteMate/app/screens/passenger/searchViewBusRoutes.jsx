@@ -354,6 +354,7 @@ const BusTrackingScreen = () => {
     </View>
   );
 };
+export default BusTrackingScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -501,4 +502,3 @@ const styles = StyleSheet.create({
   }
 });
 
-export default BusTrackingScreen;
