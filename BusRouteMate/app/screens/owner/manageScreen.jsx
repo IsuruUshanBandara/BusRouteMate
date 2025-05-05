@@ -27,7 +27,7 @@ const ManageBusesScreen = () => {
       
         const userEmail = user.email;
       
-        // Step 1: Get role and phone number
+        // Get role and phone number
         const ownerRef = doc(db, 'ownerDetails', userEmail);
         const ownerSnap = await getDoc(ownerRef);
       
@@ -39,7 +39,7 @@ const ManageBusesScreen = () => {
         const { role, phoneNumber } = ownerSnap.data();
         const ownerCollection = role === 'privateOwners' ? 'privateOwners' : 'sltbAuthority';
       
-        // Step 2: Get all bus plate numbers owned by this owner
+        //Get all bus plate numbers owned by this owner
         const busesRef = collection(db, ownerCollection, phoneNumber, 'buses');
         const busesSnap = await getDocs(busesRef);
         
@@ -54,11 +54,11 @@ const ManageBusesScreen = () => {
         const ownerBusPlates = busesSnap.docs.map(doc => doc.id);
         console.log("Owner's buses:", ownerBusPlates);
         
-        // Step 3: Get all routes from routes collection
+        //Get all routes from routes collection
         const routesRef = collection(db, 'routes');
         const routesSnap = await getDocs(routesRef);
         
-        // Step 4: Filter routes that belong to owner's buses and parse route information
+        //Filter routes that belong to owner's buses and parse route information
         const busRoutesData = [];
         
         routesSnap.docs.forEach(routeDoc => {
