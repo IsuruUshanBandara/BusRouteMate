@@ -1,17 +1,11 @@
-import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView, Platform, Dimensions } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import React, { useState } from 'react';
 import { TextInput, Button, Provider, Avatar, Menu, HelperText } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { auth, db } from '../../db/firebaseConfig';
-import { getDoc, doc, updateDoc } from 'firebase/firestore';
-import { 
-    EmailAuthProvider, 
-    reauthenticateWithCredential, 
-    updatePassword, 
-    signInWithEmailAndPassword,
-    fetchSignInMethodsForEmail
-} from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 const PassengerForgotPassword = () => {
     const router = useRouter();
@@ -19,15 +13,7 @@ const PassengerForgotPassword = () => {
     const [phoneNumber, setPhoneNumber] = useState('');
     const [securityQuestion, setSecurityQuestion] = useState('');
     const [securityQuestionAns, setSecurityQuestionAns] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [showNewPassword, setShowNewPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [menuVisible, setMenuVisible] = useState(false);
-    const [formContainerWidth, setFormContainerWidth] = useState(Dimensions.get('window').width - 40);
-    const [userVerified, setUserVerified] = useState(false);
-    const [oldPassword, setOldPassword] = useState('');
-    const [showOldPassword, setShowOldPassword] = useState(false);
     
     // Error states
     const [errors, setErrors] = useState({
@@ -35,24 +21,8 @@ const PassengerForgotPassword = () => {
         phoneNumber: '',
         securityQuestion: '',
         securityQuestionAns: '',
-        oldPassword: '',
-        newPassword: '',
-        confirmPassword: '',
         form: ''
     });
-
-    // Update width on orientation change
-    useEffect(() => {
-        const updateWidth = () => {
-            setFormContainerWidth(Dimensions.get('window').width - 40);
-        };
-        
-        const dimensionsListener = Dimensions.addEventListener('change', updateWidth);
-        
-        return () => {
-            dimensionsListener.remove();
-        };
-    }, []);
 
     // Security questions list
     const securityQuestions = [
@@ -91,18 +61,6 @@ const PassengerForgotPassword = () => {
         return '';
     };
 
-    const validatePassword = (password) => {
-        if (!password) return 'Password is required';
-        if (password.length < 6) return 'Password must be at least 6 characters';
-        return '';
-    };
-
-    const validateConfirmPassword = (password, confirmPassword) => {
-        if (!confirmPassword) return 'Confirm password is required';
-        if (password !== confirmPassword) return 'Passwords do not match';
-        return '';
-    };
-
     const validateSecurityQuestion = (question) => {
         if (!question) return 'Security question is required';
         return '';
@@ -113,8 +71,8 @@ const PassengerForgotPassword = () => {
         return '';
     };
 
-    // Form validation for verification step
-    const validateVerificationForm = () => {
+    // Form validation
+    const validateForm = () => {
         const newErrors = {
             email: validateEmail(email),
             phoneNumber: validatePhoneNumber(phoneNumber),
@@ -125,56 +83,33 @@ const PassengerForgotPassword = () => {
 
         setErrors(newErrors);
 
-        // Check if there are any validation errors in verification fields
-        return !Object.values(newErrors).some(error => error !== '' && 
-            ['email', 'phoneNumber', 'securityQuestion', 'securityQuestionAns'].includes(Object.keys(newErrors).find(key => newErrors[key] === error)));
+        // Check if there are any validation errors
+        return !Object.values(newErrors).some(error => error !== '');
     };
 
-    // Form validation for password reset step
-    const validatePasswordForm = () => {
-        const newErrors = {
-            ...errors,
-            oldPassword: validatePassword(oldPassword),
-            newPassword: validatePassword(newPassword),
-            confirmPassword: validateConfirmPassword(newPassword, confirmPassword),
-            form: ''
-        };
-
-        setErrors(newErrors);
-
-        // Check if there are any validation errors in password fields
-        return !['oldPassword', 'newPassword', 'confirmPassword'].some(field => newErrors[field] !== '');
-    };
-
-    const handleVerifyUser = async () => {
-        // Validate verification fields before submitting
-        if (!validateVerificationForm()) {
-            setErrors(prev => ({...prev, form: 'Please fix the errors before proceeding'}));
+    const handleForgotPassword = async () => {
+        // Validate fields before submitting
+        if (!validateForm()) {
+            // Don't show general form error if field-specific errors are shown
+            return;
             return;
         }
 
         try {
-            // First check if the email exists in Firebase Auth
-            const methods = await fetchSignInMethodsForEmail(auth, email);
-            if (methods.length === 0) {
-                setErrors(prev => ({...prev, form: 'No account exists with this email'}));
-                return;
-            }
-            
             // Reference to Firestore document using email
             const userDocRef = doc(db, "passengerDetails", email);
             
             // Get the document
-            const docSnapshot = await getDoc(userDocRef);
+            const userDocSnap = await getDoc(userDocRef);
             
-            if (!docSnapshot.exists()) {
-                setErrors(prev => ({...prev, form: 'Account not found'}));
+            if (!userDocSnap.exists()) {
+                setErrors(prev => ({...prev, form: 'No account exists with this email'}));
                 return;
             }
             
-            const userData = docSnapshot.data();
+            const userData = userDocSnap.data();
             
-            // Verify phone number, security question and answer
+            // Verify phone number, security question and answer match with records
             if (userData.phoneNumber !== phoneNumber) {
                 setErrors(prev => ({...prev, form: 'Phone number does not match our records'}));
                 return;
@@ -190,41 +125,16 @@ const PassengerForgotPassword = () => {
                 return;
             }
             
-            // All verification passed
-            setUserVerified(true);
-            setErrors(prev => ({...prev, form: ''}));
-        } catch (error) {
-            console.error("Verification error:", error);
-            setErrors(prev => ({...prev, form: error.message || 'Failed to verify account'}));
-        }
-    };
-
-    const handleResetPassword = async () => {
-        // Validate password fields before submitting
-        if (!validatePasswordForm()) {
-            setErrors(prev => ({...prev, form: 'Please fix the errors before submitting'}));
-            return;
-        }
-
-        try {
-            // Try to sign in with email and old password
-            const userCredential = await signInWithEmailAndPassword(auth, email, oldPassword);
-            const user = userCredential.user;
+            // All verification passed - send password reset email
+            await sendPasswordResetEmail(auth, email);
             
-            // Update the password in Firebase Auth
-            await updatePassword(user, newPassword);
-            
-            console.log("Password reset successful");
-            alert('Password has been reset successfully!');
+            // Show success message and redirect
+            alert('Password reset email has been sent to your email address. Please check your inbox.');
             router.push('passenger/passengerSignIn');
+            
         } catch (error) {
             console.error("Password reset error:", error);
-            
-            if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-                setErrors(prev => ({...prev, oldPassword: 'Current password is incorrect', form: 'Current password is incorrect'}));
-            } else {
-                setErrors(prev => ({...prev, form: error.message || 'Failed to reset password'}));
-            }
+            setErrors(prev => ({...prev, form: error.message || 'Failed to send password reset email'}));
         }
     };
 
@@ -257,231 +167,127 @@ const PassengerForgotPassword = () => {
                                     <Text style={styles.subHeadingText}>Reset Your Password</Text>
                                 </View>
 
-                                <View style={styles.formContainer}
-                                     onLayout={(event) => {
-                                        const { width } = event.nativeEvent.layout;
-                                        setFormContainerWidth(width);
-                                    }}>
+                                <View style={styles.formContainer}>
                                     <Text style={styles.formTitle}>Password Recovery</Text>
 
-                                    {errors.form ? <Text style={styles.errorText}>{errors.form}</Text> : null}
+                                    <TextInput 
+                                        style={styles.input}
+                                        label="Email *"
+                                        value={email}
+                                        onChangeText={text => {
+                                            setEmail(text);
+                                            setErrors(prev => ({...prev, email: validateEmail(text)}));
+                                        }}
+                                        mode="outlined"
+                                        outlineColor={errors.email ? '#ff5252' : '#1976d2'}
+                                        activeOutlineColor={errors.email ? '#ff5252' : '#1976d2'}
+                                        theme={{ colors: { primary: '#1976d2' } }}
+                                        left={<TextInput.Icon icon="email" color="#1976d2" />}
+                                        error={!!errors.email}
+                                    />
+                                    {errors.email ? <HelperText type="error" visible={!!errors.email}>{errors.email}</HelperText> : null}
 
-                                    {!userVerified ? (
-                                        // Step 1: Verification form
-                                        <>
-                                            <TextInput 
-                                                style={styles.input}
-                                                label="Email *"
-                                                value={email}
-                                                onChangeText={text => {
-                                                    setEmail(text);
-                                                    setErrors(prev => ({...prev, email: validateEmail(text)}));
-                                                }}
-                                                mode="outlined"
-                                                outlineColor={errors.email ? '#ff5252' : '#1976d2'}
-                                                activeOutlineColor={errors.email ? '#ff5252' : '#1976d2'}
-                                                theme={{ colors: { primary: '#1976d2' } }}
-                                                left={<TextInput.Icon icon="email" color="#1976d2" />}
-                                                error={!!errors.email}
-                                            />
-                                            {errors.email ? <HelperText type="error" visible={!!errors.email}>{errors.email}</HelperText> : null}
+                                    <TextInput 
+                                        style={styles.input}
+                                        label="Phone Number *"
+                                        value={phoneNumber}
+                                        onChangeText={text => {
+                                            setPhoneNumber(text);
+                                            setErrors(prev => ({...prev, phoneNumber: validatePhoneNumber(text)}));
+                                        }}
+                                        mode="outlined"
+                                        keyboardType="phone-pad"
+                                        outlineColor={errors.phoneNumber ? '#ff5252' : '#1976d2'}
+                                        activeOutlineColor={errors.phoneNumber ? '#ff5252' : '#1976d2'}
+                                        theme={{ colors: { primary: '#1976d2' } }}
+                                        left={<TextInput.Icon icon="phone" color="#1976d2" />}
+                                        error={!!errors.phoneNumber}
+                                    />
+                                    {errors.phoneNumber ? <HelperText type="error" visible={!!errors.phoneNumber}>{errors.phoneNumber}</HelperText> : null}
 
-                                            <TextInput 
-                                                style={styles.input}
-                                                label="Phone Number *"
-                                                value={phoneNumber}
-                                                onChangeText={text => {
-                                                    setPhoneNumber(text);
-                                                    setErrors(prev => ({...prev, phoneNumber: validatePhoneNumber(text)}));
-                                                }}
-                                                mode="outlined"
-                                                keyboardType="phone-pad"
-                                                outlineColor={errors.phoneNumber ? '#ff5252' : '#1976d2'}
-                                                activeOutlineColor={errors.phoneNumber ? '#ff5252' : '#1976d2'}
-                                                theme={{ colors: { primary: '#1976d2' } }}
-                                                left={<TextInput.Icon icon="phone" color="#1976d2" />}
-                                                error={!!errors.phoneNumber}
-                                            />
-                                            {errors.phoneNumber ? <HelperText type="error" visible={!!errors.phoneNumber}>{errors.phoneNumber}</HelperText> : null}
-
-                                            {/* Security Question Selection */}
-                                            <View style={styles.securityQuestionContainer}>
-                                                <Menu
-                                                    visible={menuVisible}
-                                                    onDismiss={() => setMenuVisible(false)}
-                                                    anchor={
-                                                        <TextInput
-                                                            style={styles.input}
-                                                            label="Security Question *"
-                                                            value={securityQuestion}
-                                                            placeholder="Select a security question"
-                                                            mode="outlined"
-                                                            editable={false}
-                                                            onPress={toggleMenuVisibility}
-                                                            outlineColor={errors.securityQuestion ? '#ff5252' : '#1976d2'}
-                                                            activeOutlineColor={errors.securityQuestion ? '#ff5252' : '#1976d2'}
-                                                            theme={{ colors: { primary: '#1976d2' } }}
-                                                            left={<TextInput.Icon icon="shield-account" color="#1976d2" />}
-                                                            right={
-                                                                <TextInput.Icon 
-                                                                    icon={menuVisible ? 'chevron-up' : 'chevron-down'} 
-                                                                    color="#1976d2"
-                                                                    onPress={toggleMenuVisibility} 
-                                                                />
-                                                            }
-                                                            error={!!errors.securityQuestion}
+                                    {/* Security Question Selection */}
+                                    <View style={styles.securityQuestionContainer}>
+                                        <Menu
+                                            visible={menuVisible}
+                                            onDismiss={() => setMenuVisible(false)}
+                                            anchor={
+                                                <TextInput
+                                                    style={styles.input}
+                                                    label="Security Question *"
+                                                    value={securityQuestion}
+                                                    placeholder="Select a security question"
+                                                    mode="outlined"
+                                                    editable={false}
+                                                    onPress={toggleMenuVisibility}
+                                                    outlineColor={errors.securityQuestion ? '#ff5252' : '#1976d2'}
+                                                    activeOutlineColor={errors.securityQuestion ? '#ff5252' : '#1976d2'}
+                                                    theme={{ colors: { primary: '#1976d2' } }}
+                                                    left={<TextInput.Icon icon="shield-account" color="#1976d2" />}
+                                                    right={
+                                                        <TextInput.Icon 
+                                                            icon={menuVisible ? 'chevron-up' : 'chevron-down'} 
+                                                            color="#1976d2"
+                                                            onPress={toggleMenuVisibility} 
                                                         />
                                                     }
-                                                    contentStyle={[styles.menuContent, { width: formContainerWidth - 40 }]}
-                                                >
-                                                    <ScrollView 
-                                                        style={styles.menuScrollView}
-                                                        showsVerticalScrollIndicator={true}
-                                                        persistentScrollbar={true}
-                                                        nestedScrollEnabled={true}
-                                                    >
-                                                        {securityQuestions.map((question, index) => (
-                                                            <Menu.Item
-                                                                key={index}
-                                                                onPress={() => {
-                                                                    setSecurityQuestion(question);
-                                                                    setErrors(prev => ({...prev, securityQuestion: ''}));
-                                                                    setMenuVisible(false);
-                                                                }}
-                                                                title={question}
-                                                                style={styles.menuItem}
-                                                                titleStyle={styles.menuItemText}
-                                                            />
-                                                        ))}
-                                                    </ScrollView>
-                                                </Menu>
-                                                {errors.securityQuestion ? <HelperText type="error" visible={!!errors.securityQuestion}>{errors.securityQuestion}</HelperText> : null}
-                                            </View>
-
-                                            <TextInput 
-                                                style={styles.input}
-                                                label="Answer to the Selected Security Question *"
-                                                value={securityQuestionAns}
-                                                onChangeText={text => {
-                                                    setSecurityQuestionAns(text);
-                                                    setErrors(prev => ({...prev, securityQuestionAns: validateSecurityAnswer(text)}));
-                                                }}
-                                                mode="outlined"
-                                                outlineColor={errors.securityQuestionAns ? '#ff5252' : '#1976d2'}
-                                                activeOutlineColor={errors.securityQuestionAns ? '#ff5252' : '#1976d2'}
-                                                theme={{ colors: { primary: '#1976d2' } }}
-                                                left={<TextInput.Icon icon="key" color="#1976d2" />}
-                                                error={!!errors.securityQuestionAns}
-                                            />
-                                            {errors.securityQuestionAns ? <HelperText type="error" visible={!!errors.securityQuestionAns}>{errors.securityQuestionAns}</HelperText> : null}
-
-                                            <Button 
-                                                mode="contained" 
-                                                style={styles.verifyButton} 
-                                                labelStyle={styles.buttonText}
-                                                onPress={handleVerifyUser}
-                                                buttonColor="#1976d2"
-                                                icon="account-check"
+                                                    error={!!errors.securityQuestion}
+                                                />
+                                            }
+                                            contentStyle={styles.menuContent}
+                                        >
+                                            <ScrollView 
+                                                style={styles.menuScrollView}
+                                                showsVerticalScrollIndicator={true}
+                                                persistentScrollbar={true}
+                                                nestedScrollEnabled={true}
                                             >
-                                                Verify Account
-                                            </Button>
-                                        </>
-                                    ) : (
-                                        // Step 2: Password reset form
-                                        <>
-                                            <Text style={styles.successText}>Account verified! Please set your new password.</Text>
-
-                                            <TextInput 
-                                                style={styles.input}
-                                                label="Current Password *"
-                                                value={oldPassword}
-                                                onChangeText={text => {
-                                                    setOldPassword(text);
-                                                    setErrors(prev => ({...prev, oldPassword: validatePassword(text)}));
-                                                }}
-                                                mode="outlined"
-                                                secureTextEntry={!showOldPassword}
-                                                outlineColor={errors.oldPassword ? '#ff5252' : '#1976d2'}
-                                                activeOutlineColor={errors.oldPassword ? '#ff5252' : '#1976d2'}
-                                                theme={{ colors: { primary: '#1976d2' } }}
-                                                left={<TextInput.Icon icon="lock" color="#1976d2" />}
-                                                right={
-                                                    <TextInput.Icon 
-                                                        icon={showOldPassword ? 'eye-off' : 'eye'} 
-                                                        color="#1976d2"
-                                                        onPress={() => setShowOldPassword(!showOldPassword)} 
+                                                {securityQuestions.map((question, index) => (
+                                                    <Menu.Item
+                                                        key={index}
+                                                        onPress={() => {
+                                                            setSecurityQuestion(question);
+                                                            setErrors(prev => ({...prev, securityQuestion: ''}));
+                                                            setMenuVisible(false);
+                                                        }}
+                                                        title={question}
+                                                        style={styles.menuItem}
+                                                        titleStyle={styles.menuItemText}
                                                     />
-                                                }
-                                                error={!!errors.oldPassword}
-                                            />
-                                            {errors.oldPassword ? <HelperText type="error" visible={!!errors.oldPassword}>{errors.oldPassword}</HelperText> : null}
+                                                ))}
+                                            </ScrollView>
+                                        </Menu>
+                                        {errors.securityQuestion ? <HelperText type="error" visible={!!errors.securityQuestion}>{errors.securityQuestion}</HelperText> : null}
+                                    </View>
 
-                                            <TextInput 
-                                                style={styles.input}
-                                                label="New Password *"
-                                                value={newPassword}
-                                                onChangeText={text => {
-                                                    setNewPassword(text);
-                                                    setErrors(prev => ({
-                                                        ...prev, 
-                                                        newPassword: validatePassword(text),
-                                                        confirmPassword: validateConfirmPassword(text, confirmPassword)
-                                                    }));
-                                                }}
-                                                mode="outlined"
-                                                secureTextEntry={!showNewPassword}
-                                                outlineColor={errors.newPassword ? '#ff5252' : '#1976d2'}
-                                                activeOutlineColor={errors.newPassword ? '#ff5252' : '#1976d2'}
-                                                theme={{ colors: { primary: '#1976d2' } }}
-                                                left={<TextInput.Icon icon="lock" color="#1976d2" />}
-                                                right={
-                                                    <TextInput.Icon 
-                                                        icon={showNewPassword ? 'eye-off' : 'eye'} 
-                                                        color="#1976d2"
-                                                        onPress={() => setShowNewPassword(!showNewPassword)} 
-                                                    />
-                                                }
-                                                error={!!errors.newPassword}
-                                            />
-                                            {errors.newPassword ? <HelperText type="error" visible={!!errors.newPassword}>{errors.newPassword}</HelperText> : null}
+                                    <TextInput 
+                                        style={styles.input}
+                                        label="Answer to the Selected Security Question *"
+                                        value={securityQuestionAns}
+                                        onChangeText={text => {
+                                            setSecurityQuestionAns(text);
+                                            setErrors(prev => ({...prev, securityQuestionAns: validateSecurityAnswer(text)}));
+                                        }}
+                                        mode="outlined"
+                                        outlineColor={errors.securityQuestionAns ? '#ff5252' : '#1976d2'}
+                                        activeOutlineColor={errors.securityQuestionAns ? '#ff5252' : '#1976d2'}
+                                        theme={{ colors: { primary: '#1976d2' } }}
+                                        left={<TextInput.Icon icon="key" color="#1976d2" />}
+                                        error={!!errors.securityQuestionAns}
+                                    />
+                                    {errors.securityQuestionAns ? <HelperText type="error" visible={!!errors.securityQuestionAns}>{errors.securityQuestionAns}</HelperText> : null}
+                                    
+                                    {errors.form ? <HelperText type="error" visible={!!errors.form} style={styles.formError}>{errors.form}</HelperText> : null}
 
-                                            <TextInput 
-                                                style={styles.input}
-                                                label="Confirm Password *"
-                                                value={confirmPassword}
-                                                onChangeText={text => {
-                                                    setConfirmPassword(text);
-                                                    setErrors(prev => ({...prev, confirmPassword: validateConfirmPassword(newPassword, text)}));
-                                                }}
-                                                mode="outlined"
-                                                secureTextEntry={!showConfirmPassword}
-                                                outlineColor={errors.confirmPassword ? '#ff5252' : '#1976d2'}
-                                                activeOutlineColor={errors.confirmPassword ? '#ff5252' : '#1976d2'}
-                                                theme={{ colors: { primary: '#1976d2' } }}
-                                                left={<TextInput.Icon icon="lock-check" color="#1976d2" />}
-                                                right={
-                                                    <TextInput.Icon 
-                                                        icon={showConfirmPassword ? 'eye-off' : 'eye'} 
-                                                        color="#1976d2"
-                                                        onPress={() => setShowConfirmPassword(!showConfirmPassword)} 
-                                                    />
-                                                }
-                                                error={!!errors.confirmPassword}
-                                            />
-                                            {errors.confirmPassword ? <HelperText type="error" visible={!!errors.confirmPassword}>{errors.confirmPassword}</HelperText> : null}
-
-                                            <Button 
-                                                mode="contained" 
-                                                style={styles.resetButton} 
-                                                labelStyle={styles.buttonText}
-                                                onPress={handleResetPassword}
-                                                buttonColor="#1976d2"
-                                                icon="key"
-                                            >
-                                                Reset Password
-                                            </Button>
-                                        </>
-                                    )}
+                                    <Button 
+                                        mode="contained" 
+                                        style={styles.resetButton} 
+                                        labelStyle={styles.buttonText}
+                                        onPress={handleForgotPassword}
+                                        buttonColor="#1976d2"
+                                        icon="email-send"
+                                    >
+                                        Send Reset Email
+                                    </Button>
                                     
                                     <Button 
                                         mode="text" 
@@ -563,7 +369,7 @@ const styles = StyleSheet.create({
         color: '#1976d2',
     },
     input: {
-        marginVertical: 6,
+        marginVertical: 8,
         width: '100%',
         backgroundColor: 'white',
     },
@@ -575,7 +381,6 @@ const styles = StyleSheet.create({
     },
     menuContent: {
         backgroundColor: 'white',
-        alignSelf: 'center',
         maxHeight: 200, // Fixed height for the menu
         paddingVertical: 0, // Remove default padding to maximize scroll space
     },
@@ -592,14 +397,6 @@ const styles = StyleSheet.create({
     menuItemText: {
         fontSize: 14,
         color: '#333',
-    },
-    verifyButton: {
-        marginTop: 20,
-        paddingVertical: 8,
-        width: '100%',
-        alignSelf: 'center',
-        borderRadius: 10,
-        elevation: 2,
     },
     resetButton: {
         marginTop: 20,
@@ -625,11 +422,11 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         fontWeight: '500',
     },
-    successText: {
-        color: '#4caf50',
+    formError: {
+        color: '#ff5252',
         textAlign: 'center',
-        marginBottom: 15,
+        marginTop: 5,
+        marginBottom: 10,
         fontWeight: '500',
-        fontSize: 16,
     },
 });
