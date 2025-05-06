@@ -359,146 +359,200 @@ export default BusTrackingScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: 'white'
+    padding: 20,
+    backgroundColor: '#f5f8ff' // Light blue background for the whole screen
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
-    marginBottom: 16
+    marginBottom: 20,
+    color: '#1976d2',
+    textAlign: 'center'
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: 18,
     zIndex: Platform.OS === 'ios' ? 2000 - 500 : undefined,
   },
   label: {
     marginBottom: 8,
-    fontWeight: '500'
+    fontWeight: '600',
+    fontSize: 16,
+    color: '#333'
   },
   autocompleteInput: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 8,
-    height: 40,
+    borderColor: '#bbd0ec',
+    borderRadius: 10,
+    padding: 12,
+    height: 46,
+    backgroundColor: 'white',
+    shadowColor: '#1976d2',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 20,
     zIndex: Platform.OS === 'ios' ? 1 : undefined,
   },
   searchButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: '#1976d2',
+    borderRadius: 10,
+    padding: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    marginRight: 8,
-    height: 48
+    flex: 2,
+    marginRight: 10,
+    height: 50,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   searchButtonText: {
     color: 'white',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    fontSize: 16
   },
   clearButton: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: '#e8f0fe',
+    borderRadius: 10,
+    padding: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#c3d7f5',
     flex: 1,
-    marginLeft: 8
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   clearButtonText: {
-    color: '#4b5563',
-    fontWeight: 'bold'
+    color: '#1976d2',
+    fontWeight: 'bold',
+    fontSize: 16
   },
   errorText: {
-    color: '#ef4444',
+    color: '#e53935',
     marginBottom: 16,
-    textAlign: 'center'
+    textAlign: 'center',
+    fontWeight: '500',
+    backgroundColor: '#ffebee',
+    padding: 10,
+    borderRadius: 8
   },
   resultsTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 8
+    marginBottom: 12,
+    color: '#1976d2',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e8f5',
+    paddingBottom: 8
   },
   resultsContainer: {
     flex: 1
   },
   resultItem: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-    backgroundColor: '#f9fafb'
+    borderColor: '#c3d7f5',
+    borderRadius: 12,
+    padding: 18,
+    marginBottom: 14,
+    backgroundColor: 'white',
+    shadowColor: '#1976d2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   resultHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e8f5',
+    paddingBottom: 10
   },
   routeText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#1f2937'
+    color: '#1565c0',
+    flex: 1
   },
   busNumberTag: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#1976d2',
     color: 'white',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    fontSize: 12,
-    fontWeight: '500'
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    fontSize: 13,
+    fontWeight: '600',
+    overflow: 'hidden'
   },
   resultText: {
-    marginBottom: 6,
-    color: '#4b5563'
+    marginBottom: 8,
+    color: '#424242',
+    fontSize: 15
   },
   currentLocationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 6
+    marginTop: 6,
+    marginBottom: 8,
+    backgroundColor: '#e3f2fd',
+    padding: 10,
+    borderRadius: 8
   },
   currentLocationLabel: {
-    fontWeight: '500',
-    marginRight: 4,
-    color: '#4b5563'
+    fontWeight: '600',
+    marginRight: 6,
+    color: '#1976d2',
+    fontSize: 15
   },
   currentLocationText: {
     fontWeight: 'bold',
-    color: '#059669'
+    color: '#01579b',
+    fontSize: 15
   },
   updatedText: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 4,
-    marginBottom: 10,
+    fontSize: 13,
+    color: '#78909c',
+    marginTop: 6,
+    marginBottom: 14,
     fontStyle: 'italic'
   },
   viewMapButton: {
-    backgroundColor: '#e5e7eb',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 4,
-    alignSelf: 'flex-end'
+    backgroundColor: '#1976d2',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: 'flex-end',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   viewMapButtonText: {
-    color: '#4b5563',
-    fontSize: 12,
-    fontWeight: '500'
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600'
   },
   noResultsText: {
     textAlign: 'center',
-    color: '#6b7280',
-    marginTop: 32
+    color: '#78909c',
+    marginTop: 40,
+    fontSize: 16,
+    backgroundColor: '#e3f2fd',
+    padding: 20,
+    borderRadius: 10
   }
 });
 

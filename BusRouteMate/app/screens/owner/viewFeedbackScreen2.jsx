@@ -12,13 +12,13 @@ const ViewFeedbackScreen2 = () => {
   const [feedbackData, setFeedbackData] = useState(null);
   const { busPlate } = useLocalSearchParams();
 
-  // Color scheme for star ratings
+  // Updated vibrant color scheme for star ratings
   const starColors = {
-    1: '#FF6B6B', // Red for 1 star
-    2: '#FFD166', // Orange-yellow for 2 stars
-    3: '#06D6A0', // Green for 3 stars
-    4: '#118AB2', // Blue for 4 stars
-    5: '#073B4C'  // Dark blue for 5 stars
+    1: '#FF3B30', // Bright red for 1 star
+    2: '#FF9500', // Bright orange for 2 stars
+    3: '#FFCC00', // Bright yellow for 3 stars
+    4: '#34C759', // Bright green for 4 stars
+    5: '#007AFF'  // Bright blue for 5 stars
   };
 
   useEffect(() => {
@@ -63,7 +63,7 @@ const ViewFeedbackScreen2 = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
   }
@@ -71,7 +71,7 @@ const ViewFeedbackScreen2 = () => {
   if (!feedbackData || feedbackData.length === 0) {
     return (
       <View style={styles.container}>
-        <Text>No feedback available for this bus.</Text>
+        <Text style={styles.noDataText}>No feedback available for this bus.</Text>
       </View>
     );
   }
@@ -101,7 +101,7 @@ const ViewFeedbackScreen2 = () => {
     .filter(feedback => feedback.busConditionPollution && feedback.busConditionPollution.conditionRating)
     .map(feedback => feedback.busConditionPollution.conditionRating);
 
-  // Function to calculate star distribution
+  // Improved function to calculate star distribution with more details
   const calculateStarDistribution = (ratings) => {
     if (!ratings || ratings.length === 0) return [];
     
@@ -124,8 +124,13 @@ const ViewFeedbackScreen2 = () => {
         value: count,
         star: parseInt(star),
         color: starColors[star],
-        label: `${star}★: ${percentage.toFixed(1)}%`,
-        percentage: percentage
+        // Add percentage sign to the display text
+        text: `${percentage.toFixed(1)}%`,
+        // Include more comprehensive data for use in custom rendering
+        count: count,
+        percentage: percentage,
+        // Focused display for when a slice is selected
+        focused: false
       };
     }).filter(item => item.value > 0); // Only include stars that have ratings
   };
@@ -153,34 +158,71 @@ const ViewFeedbackScreen2 = () => {
     ? busConditionRatings.reduce((sum, rating) => sum + rating, 0) / busConditionRatings.length 
     : 0;
 
-  // Pollution issues chart data with null checking
+  // Pollution issues chart data with detailed severity breakdown
   const pollutionCounts = {
     excessiveHorn: 0,
     excessiveSmoke: 0,
     loudSilencer: 0
   };
+  
+  // Detailed breakdown by severity level - Fixed to properly handle case sensitivity
+  const pollutionDetails = {
+    excessiveHorn: { High: 0, Medium: 0, Low: 0 },
+    excessiveSmoke: { High: 0, Medium: 0, Low: 0 },
+    loudSilencer: { High: 0, Medium: 0, Low: 0 }
+  };
 
-  // Safely count pollution issues
+  // Safely count pollution issues with fixed severity breakdown
   feedbackData.forEach(feedback => {
     if (feedback.busConditionPollution && feedback.busConditionPollution.pollutionIssues) {
       const issues = feedback.busConditionPollution.pollutionIssues;
+      
+      // Process excessiveHorn - FIX: Handle case sensitivity
       if (issues.excessiveHorn && issues.excessiveHorn !== 'None') {
         pollutionCounts.excessiveHorn++;
+        
+        // Normalize case to match property names
+        const severity = issues.excessiveHorn.charAt(0).toUpperCase() + issues.excessiveHorn.slice(1).toLowerCase();
+        
+        // Increment the appropriate severity counter
+        if (severity === 'High' || severity === 'Medium' || severity === 'Low') {
+          pollutionDetails.excessiveHorn[severity]++;
+        }
       }
+      
+      // Process excessiveSmoke - FIX: Handle case sensitivity
       if (issues.excessiveSmoke && issues.excessiveSmoke !== 'None') {
         pollutionCounts.excessiveSmoke++;
+        
+        // Normalize case to match property names
+        const severity = issues.excessiveSmoke.charAt(0).toUpperCase() + issues.excessiveSmoke.slice(1).toLowerCase();
+        
+        // Increment the appropriate severity counter
+        if (severity === 'High' || severity === 'Medium' || severity === 'Low') {
+          pollutionDetails.excessiveSmoke[severity]++;
+        }
       }
+      
+      // Process loudSilencer - FIX: Handle case sensitivity
       if (issues.loudSilencer && issues.loudSilencer !== 'None') {
         pollutionCounts.loudSilencer++;
+        
+        // Normalize case to match property names
+        const severity = issues.loudSilencer.charAt(0).toUpperCase() + issues.loudSilencer.slice(1).toLowerCase();
+        
+        // Increment the appropriate severity counter
+        if (severity === 'High' || severity === 'Medium' || severity === 'Low') {
+          pollutionDetails.loudSilencer[severity]++;
+        }
       }
     }
   });
 
-  // Create proper data format for BarChart
+  // Create proper data format for BarChart with updated vibrant colors
   const pollutionBarData = [
-    { value: pollutionCounts.excessiveHorn, label: 'Horn', frontColor: '#FF8C00' },
-    { value: pollutionCounts.excessiveSmoke, label: 'Smoke', frontColor: '#4682B4' },
-    { value: pollutionCounts.loudSilencer, label: 'Silencer', frontColor: '#9370DB' }
+    { value: pollutionCounts.excessiveHorn, label: 'Horn', frontColor: '#FF9500' },
+    { value: pollutionCounts.excessiveSmoke, label: 'Smoke', frontColor: '#5856D6' },
+    { value: pollutionCounts.loudSilencer, label: 'Silencer', frontColor: '#FF2D55' }
   ];
 
   // Helper function to format ratings for display
@@ -188,21 +230,24 @@ const ViewFeedbackScreen2 = () => {
     return rating.toFixed(1);
   };
 
-  // Component for displaying star rating legend
-  const RatingLegend = () => (
+  // Component for displaying star rating legend with more details
+  const RatingLegend = ({ distribution, totalRatings }) => (
     <View style={styles.legendContainer}>
-      {Object.keys(starColors).map(star => (
-        <View key={star} style={styles.legendItem}>
-          <View style={[styles.legendColor, {backgroundColor: starColors[star]}]} />
-          <Text>{star} Star{parseInt(star) > 1 ? 's' : ''}</Text>
+      {distribution.map(item => (
+        <View key={item.star} style={styles.legendItem}>
+          <View style={[styles.legendColor, {backgroundColor: item.color}]} />
+          <Text style={styles.legendText}>
+            {item.star} ★: {item.count} votes ({item.percentage.toFixed(1)}%)
+          </Text>
         </View>
       ))}
+      <Text style={styles.totalVotes}>Total votes: {totalRatings}</Text>
     </View>
   );
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Bus: {busPlate}</Text>
+      <Text style={styles.title}>Bus Feedback: {busPlate}</Text>
 
       {/* Driver and Conductor Ratings (Pie Charts) */}
       <Text style={styles.subtitle}>Driver and Conductor Ratings</Text>
@@ -210,7 +255,10 @@ const ViewFeedbackScreen2 = () => {
       {conductorRatings.length > 0 && (
         <View style={styles.chartContainer}>
           <Text style={styles.chartTitle}>Conductor Rating Distribution</Text>
-          <Text style={styles.chartSubtitle}>Average: {formatRating(averageConductorRating)}/5</Text>
+          <Text style={styles.chartSubtitle}>
+            Average: <Text style={styles.ratingValue}>{formatRating(averageConductorRating)}/5</Text> 
+            • {conductorRatings.length} ratings
+          </Text>
           <PieChart
             data={conductorDistribution}
             width={300}
@@ -219,6 +267,14 @@ const ViewFeedbackScreen2 = () => {
             textColor="white"
             textSize={14}
             focusOnPress
+            radius={90}
+            innerRadius={30}
+            innerCircleColor="#f8f9fa"
+          />
+          {/* Legend placed right after each chart */}
+          <RatingLegend 
+            distribution={conductorDistribution} 
+            totalRatings={conductorRatings.length} 
           />
           <TouchableOpacity 
             style={styles.linkButton} 
@@ -232,7 +288,10 @@ const ViewFeedbackScreen2 = () => {
       {driverRatings.length > 0 && (
         <View style={styles.chartContainer}>
           <Text style={styles.chartTitle}>Driver Rating Distribution</Text>
-          <Text style={styles.chartSubtitle}>Average: {formatRating(averageDriverRating)}/5</Text>
+          <Text style={styles.chartSubtitle}>
+            Average: <Text style={styles.ratingValue}>{formatRating(averageDriverRating)}/5</Text> 
+            • {driverRatings.length} ratings
+          </Text>
           <PieChart
             data={driverDistribution}
             width={300}
@@ -241,6 +300,14 @@ const ViewFeedbackScreen2 = () => {
             textColor="white"
             textSize={14}
             focusOnPress
+            radius={90}
+            innerRadius={30}
+            innerCircleColor="#f8f9fa"
+          />
+          {/* Legend placed right after each chart */}
+          <RatingLegend 
+            distribution={driverDistribution} 
+            totalRatings={driverRatings.length} 
           />
           <TouchableOpacity 
             style={styles.linkButton} 
@@ -250,8 +317,6 @@ const ViewFeedbackScreen2 = () => {
           </TouchableOpacity>
         </View>
       )}
-      
-      <RatingLegend />
 
       {/* Customer Satisfaction */}
       {satisfactionRatings.length > 0 && (
@@ -259,7 +324,10 @@ const ViewFeedbackScreen2 = () => {
           <Text style={styles.subtitle}>Customer Satisfaction</Text>
           <View style={styles.chartContainer}>
             <Text style={styles.chartTitle}>Satisfaction Rating Distribution</Text>
-            <Text style={styles.chartSubtitle}>Average: {formatRating(averageSatisfactionRating)}/5</Text>
+            <Text style={styles.chartSubtitle}>
+              Average: <Text style={styles.ratingValue}>{formatRating(averageSatisfactionRating)}/5</Text> 
+              • {satisfactionRatings.length} ratings
+            </Text>
             <PieChart
               data={satisfactionDistribution}
               width={300}
@@ -268,6 +336,14 @@ const ViewFeedbackScreen2 = () => {
               textColor="white"
               textSize={14}
               focusOnPress
+              radius={90}
+              innerRadius={30}
+              innerCircleColor="#f8f9fa"
+            />
+            {/* Legend placed right after each chart */}
+            <RatingLegend 
+              distribution={satisfactionDistribution} 
+              totalRatings={satisfactionRatings.length} 
             />
           </View>
         </>
@@ -279,7 +355,10 @@ const ViewFeedbackScreen2 = () => {
           <Text style={styles.subtitle}>Bus Condition</Text>
           <View style={styles.chartContainer}>
             <Text style={styles.chartTitle}>Bus Condition Rating Distribution</Text>
-            <Text style={styles.chartSubtitle}>Average: {formatRating(averageBusConditionRating)}/5</Text>
+            <Text style={styles.chartSubtitle}>
+              Average: <Text style={styles.ratingValue}>{formatRating(averageBusConditionRating)}/5</Text> 
+              • {busConditionRatings.length} ratings
+            </Text>
             <PieChart
               data={busConditionDistribution}
               width={300}
@@ -288,6 +367,14 @@ const ViewFeedbackScreen2 = () => {
               textColor="white"
               textSize={14}
               focusOnPress
+              radius={90}
+              innerRadius={30}
+              innerCircleColor="#f8f9fa"
+            />
+            {/* Legend placed right after each chart */}
+            <RatingLegend 
+              distribution={busConditionDistribution} 
+              totalRatings={busConditionRatings.length} 
             />
             <TouchableOpacity 
               style={styles.linkButton} 
@@ -299,7 +386,7 @@ const ViewFeedbackScreen2 = () => {
         </>
       )}
 
-      {/* Pollution Issues */}
+      {/* Pollution Issues - Fixed to stay inside container */}
       {(pollutionCounts.excessiveHorn > 0 || 
         pollutionCounts.excessiveSmoke > 0 || 
         pollutionCounts.loudSilencer > 0) && (
@@ -307,27 +394,115 @@ const ViewFeedbackScreen2 = () => {
           <Text style={styles.subtitle}>Bus Pollution Issues</Text>
           <View style={styles.chartContainer}>
             <Text style={styles.chartTitle}>Number of Reported Issues</Text>
-            <BarChart
-              data={pollutionBarData}
-              width={300}
-              height={200}
-              barWidth={30}
-              showValuesOnTopOfBars
-              spacing={30}
-            />
-            <View style={styles.legendContainer}>
+            <View style={styles.barChartContainer}>
+              <BarChart
+                data={pollutionBarData}
+                width={260}
+                height={200}
+                barWidth={30}
+                showValuesOnTopOfBars
+                spacing={40}
+                hideRules
+                noOfSections={5}
+                maxValue={Math.max(...Object.values(pollutionCounts)) + 1}
+              />
+            </View>
+            
+            {/* Overall summary of issues */}
+            <View style={styles.pollutionLegendContainer}>
+              <Text style={styles.pollutionSectionTitle}>Issue Summary</Text>
               <View style={styles.legendItem}>
-                <View style={[styles.legendColor, {backgroundColor: '#FF8C00'}]} />
-                <Text>Excessive Horn</Text>
+                <View style={[styles.legendColor, {backgroundColor: '#FF9500'}]} />
+                <Text style={styles.legendText}>
+                  Excessive Horn: {pollutionCounts.excessiveHorn} reports
+                </Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendColor, {backgroundColor: '#4682B4'}]} />
-                <Text>Excessive Smoke</Text>
+                <View style={[styles.legendColor, {backgroundColor: '#5856D6'}]} />
+                <Text style={styles.legendText}>
+                  Excessive Smoke: {pollutionCounts.excessiveSmoke} reports
+                </Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendColor, {backgroundColor: '#9370DB'}]} />
-                <Text>Loud Silencer</Text>
+                <View style={[styles.legendColor, {backgroundColor: '#FF2D55'}]} />
+                <Text style={styles.legendText}>
+                  Loud Silencer: {pollutionCounts.loudSilencer} reports
+                </Text>
               </View>
+            </View>
+            
+            {/* Detailed breakdown by severity */}
+            <View style={styles.pollutionDetailsContainer}>
+              <Text style={styles.pollutionSectionTitle}>Severity Breakdown</Text>
+              
+              {/* Excessive Horn breakdown */}
+              {pollutionCounts.excessiveHorn > 0 && (
+                <View style={styles.severitySection}>
+                  <Text style={styles.severitySectionTitle}>
+                    Excessive Horn:
+                  </Text>
+                  <View style={styles.severityBreakdown}>
+                    <View style={styles.severityItem}>
+                      <View style={[styles.severityIndicator, {backgroundColor: '#FF3B30'}]} />
+                      <Text>High: {pollutionDetails.excessiveHorn.High}</Text>
+                    </View>
+                    <View style={styles.severityItem}>
+                      <View style={[styles.severityIndicator, {backgroundColor: '#FF9500'}]} />
+                      <Text>Medium: {pollutionDetails.excessiveHorn.Medium}</Text>
+                    </View>
+                    <View style={styles.severityItem}>
+                      <View style={[styles.severityIndicator, {backgroundColor: '#FFCC00'}]} />
+                      <Text>Low: {pollutionDetails.excessiveHorn.Low}</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+              
+              {/* Excessive Smoke breakdown */}
+              {pollutionCounts.excessiveSmoke > 0 && (
+                <View style={styles.severitySection}>
+                  <Text style={styles.severitySectionTitle}>
+                    Excessive Smoke:
+                  </Text>
+                  <View style={styles.severityBreakdown}>
+                    <View style={styles.severityItem}>
+                      <View style={[styles.severityIndicator, {backgroundColor: '#FF3B30'}]} />
+                      <Text>High: {pollutionDetails.excessiveSmoke.High}</Text>
+                    </View>
+                    <View style={styles.severityItem}>
+                      <View style={[styles.severityIndicator, {backgroundColor: '#FF9500'}]} />
+                      <Text>Medium: {pollutionDetails.excessiveSmoke.Medium}</Text>
+                    </View>
+                    <View style={styles.severityItem}>
+                      <View style={[styles.severityIndicator, {backgroundColor: '#FFCC00'}]} />
+                      <Text>Low: {pollutionDetails.excessiveSmoke.Low}</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+              
+              {/* Loud Silencer breakdown */}
+              {pollutionCounts.loudSilencer > 0 && (
+                <View style={styles.severitySection}>
+                  <Text style={styles.severitySectionTitle}>
+                    Loud Silencer:
+                  </Text>
+                  <View style={styles.severityBreakdown}>
+                    <View style={styles.severityItem}>
+                      <View style={[styles.severityIndicator, {backgroundColor: '#FF3B30'}]} />
+                      <Text>High: {pollutionDetails.loudSilencer.High}</Text>
+                    </View>
+                    <View style={styles.severityItem}>
+                      <View style={[styles.severityIndicator, {backgroundColor: '#FF9500'}]} />
+                      <Text>Medium: {pollutionDetails.loudSilencer.Medium}</Text>
+                    </View>
+                    <View style={styles.severityItem}>
+                      <View style={[styles.severityIndicator, {backgroundColor: '#FFCC00'}]} />
+                      <Text>Low: {pollutionDetails.loudSilencer.Low}</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
         </>
@@ -363,6 +538,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 20,
+    color: '#1c1c1e',
   },
   subtitle: {
     fontSize: 20,
@@ -370,23 +546,38 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 10,
     textAlign: 'center',
+    color: '#1c1c1e',
   },
   chartContainer: {
     alignItems: 'center',
     marginVertical: 15,
-    paddingVertical: 10,
+    paddingVertical: 15,
+    paddingHorizontal: 10,
     backgroundColor: '#f8f9fa',
-    borderRadius: 8,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 3,
   },
   chartTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 5,
+    color: '#1c1c1e',
   },
   chartSubtitle: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 10,
+    marginBottom: 15,
+  },
+  ratingValue: {
+    fontWeight: 'bold',
+    color: '#007AFF',
   },
   loadingContainer: {
     flex: 1,
@@ -394,19 +585,92 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   legendContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    marginTop: 15,
-    marginBottom: 5,
+    width: '100%',
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e1e4e8',
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 8,
-    marginVertical: 4,
+    marginVertical: 5,
   },
   legendColor: {
+    width: 15,
+    height: 15,
+    borderRadius: 7.5,
+    marginRight: 8,
+  },
+  legendText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  totalVotes: {
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#666',
+  },
+  // Bar chart container to ensure proper containment
+  barChartContainer: {
+    width: 300,
+    height: 300,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  pollutionLegendContainer: {
+    width: '100%',
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e1e4e8',
+  },
+  // Pollution details section
+  pollutionDetailsContainer: {
+    width: '100%',
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e1e4e8',
+  },
+  pollutionSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  severitySection: {
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  severitySectionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  severityBreakdown: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    flexWrap: 'wrap',
+  },
+  severityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 10,
+    marginVertical: 3,
+  },
+  severityIndicator: {
     width: 12,
     height: 12,
     borderRadius: 6,
@@ -414,35 +678,45 @@ const styles = StyleSheet.create({
   },
   // View Reason Button Styles
   linkButton: {
-    marginTop: 10,
-    padding: 5,
+    marginTop: 15,
+    padding: 8,
   },
   linkButtonText: {
-    color: '#2196F3',
-    fontWeight: '500',
+    color: '#007AFF',
+    fontWeight: '600',
+    fontSize: 15,
     textDecorationLine: 'underline',
   },
   // Suggestion Section Styles
   suggestionContainer: {
     alignItems: 'center',
     marginVertical: 20,
-    paddingVertical: 15,
+    paddingVertical: 18,
     paddingHorizontal: 20,
-    backgroundColor: '#f0f8ff', // Light blue background
-    borderRadius: 8,
+    backgroundColor: '#e3f2fd', // Lighter blue background
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e1e4e8',
+    borderColor: '#bbdefb',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 3,
   },
   suggestionCount: {
     fontSize: 16,
     marginVertical: 10,
     textAlign: 'center',
+    color: '#333',
   },
   viewSuggestionsButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#007AFF',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 6,
+    borderRadius: 8,
     marginTop: 10,
     elevation: 2,
   },
@@ -451,5 +725,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
     textAlign: 'center',
+  },
+  noDataText: {
+    fontSize: 18,
+    textAlign: 'center',
+    color: '#666',
+    marginTop: 40,
   },
 });
