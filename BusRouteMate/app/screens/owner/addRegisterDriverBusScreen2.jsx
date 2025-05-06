@@ -227,10 +227,11 @@ const AddRegisterDriverBusScreen2 = () => {
   };
 
   const handleEditRoute = () => {
-    router.push({
-      pathname: 'screens/owner/addRegisterDriverBusScreen1.1',
-      params: { busData: JSON.stringify(parsedData) },
-    });
+    // router.push({
+    //   pathname: 'screens/owner/addRegisterDriverBusScreen1.1',
+    //   params: { busData: JSON.stringify(parsedData) },
+    // });
+    router.back();
   };
 
   const handleSaveAllRoutes = async () => {
@@ -255,11 +256,11 @@ const AddRegisterDriverBusScreen2 = () => {
             latitude: route.coordinates[route.coordinates.length - 1].latitude,
             longitude: route.coordinates[route.coordinates.length - 1].longitude
           },
-          passingCities: route.coordinates.slice(1, -1).map((coord, index) => ({
-            name: route.passingCities[index + 1],
-            latitude: coord.latitude,
-            longitude: coord.longitude
-          })),
+          // passingCities: route.coordinates.slice(1, -1).map((coord, index) => ({
+          //   name: route.passingCities[index + 1],
+          //   latitude: coord.latitude,
+          //   longitude: coord.longitude
+          // })),
           coordinates: route.coordinates,
           distance: route.distance,
           duration: route.duration,
@@ -290,6 +291,24 @@ const AddRegisterDriverBusScreen2 = () => {
       console.error("Error saving routes:", error);
       Alert.alert("Error", "Failed to save routes");
     }
+  };
+  const handleSaveButtonPress = () => {
+    // Show confirmation alert
+    Alert.alert(
+      "Confirm Save",
+      "Are you sure you want to save all routes? Once you proceed to the next step, you won't be able to return to this page. You can still make changes later from the edit page.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        { 
+          text: "Save All", 
+          onPress: handleSaveAllRoutes  // Call your existing save function if confirmed
+        }
+      ],
+      { cancelable: true }
+    );
   };
 
   if (loading) {
@@ -409,7 +428,7 @@ const AddRegisterDriverBusScreen2 = () => {
           ) : (
             <TouchableOpacity 
               style={[styles.navButton, styles.saveButton]}
-              onPress={handleSaveAllRoutes}
+              onPress={handleSaveButtonPress}
             >
               <Text style={styles.navButtonText}>Save All</Text>
             </TouchableOpacity>
@@ -466,7 +485,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffc107',
     padding: 15,
     borderRadius: 5,
-    width: '80%',
+    width: '100%',
     alignItems: 'center',
   },
   editButtonText: {

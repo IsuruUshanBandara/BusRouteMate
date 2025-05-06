@@ -23,6 +23,10 @@ function InputAutocomplete({ placeholder, value, onPlaceSelected, index = null, 
     if (value === '' && ref.current) {
       ref.current.clear();
     }
+
+    if (ref.current && value) {
+        ref.current.setAddressText(value);
+      }
   }, [value]);
 
   useEffect(() => {
