@@ -1,53 +1,84 @@
 import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView, Platform, ActivityIndicator } from 'react-native';
-import React,{useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import { TextInput, Button } from 'react-native-paper';
-import { useRouter } from 'expo-router';
-import {auth,db} from'../../db/firebaseConfig';
-import { collection,doc,setDoc,getDoc } from 'firebase/firestore';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { auth, db } from '../../db/firebaseConfig';
+import { collection, doc, setDoc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const AddRegisterDriverBusScreen1 = () => {
     const router = useRouter();
+    const params = useLocalSearchParams();
     const [licencePlateNum, setLicencePlateNum] = useState('');
-    const [routes, setRoutes] = useState([{ routeNum: '', busRoute: '' }]); // Array to store route number and bus route pairs
+    const [routes, setRoutes] = useState([{ routeNum: '', busRoute: '' }]); 
     const [loading, setLoading] = useState(true);
     const [ownerPhoneNumber, setOwnerPhoneNumber] = useState('');
-      useEffect(()=>{
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-          if(user){
-            // setLoading(false);
-            // console.log('User is signed in');
-            
-            try {
-                // Fetch owner details from Firestore using the email
-                const email = user.email;
-                const ownerDocRef = doc(db, 'ownerDetails', email);
-                const ownerDoc = await getDoc(ownerDocRef);
-      
-                if (ownerDoc.exists()) {
-                  setOwnerPhoneNumber(ownerDoc.data().phoneNumber);
-                } else {
-                  console.error('Owner document not found in Firestore.');
-                }
-              } catch (error) {
-                console.error('Error fetching owner details:', error);
-              }
-              setLoading(false);
-            } else {
-              router.push('screens/owner/privateSignIn');
-              setLoading(false);
-            }
-          });
-        return unsubscribe;
-      },[]);
+    const [dataLoaded, setDataLoaded] = useState(false);
     
-      if(loading){
+    // Load saved form data only once when component mounts
+    useEffect(() => {
+        const loadSavedData = async () => {
+            try {
+                // If we're returning with passed parameters
+                if (params?.busData) {
+                    const busData = JSON.parse(params.busData);
+                    setLicencePlateNum(busData.licencePlateNum || '');
+                    setRoutes(busData.routes || [{ routeNum: '', busRoute: '' }]);
+                } else {
+                    // Otherwise try to load from storage
+                    const savedFormData = await AsyncStorage.getItem('busRegistrationFormData_step1');
+                    if (savedFormData) {
+                        const formData = JSON.parse(savedFormData);
+                        setLicencePlateNum(formData.licencePlateNum || '');
+                        setRoutes(formData.routes || [{ routeNum: '', busRoute: '' }]);
+                    }
+                }
+                setDataLoaded(true);
+            } catch (error) {
+                console.error('Error loading saved form data:', error);
+                setDataLoaded(true);
+            }
+        };
+
+        if (!dataLoaded) {
+            loadSavedData();
+        }
+    }, [params, dataLoaded]);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                try {
+                    // Fetch owner details from Firestore using the email
+                    const email = user.email;
+                    const ownerDocRef = doc(db, 'ownerDetails', email);
+                    const ownerDoc = await getDoc(ownerDocRef);
+          
+                    if (ownerDoc.exists()) {
+                        setOwnerPhoneNumber(ownerDoc.data().phoneNumber);
+                    } else {
+                        console.error('Owner document not found in Firestore.');
+                    }
+                } catch (error) {
+                    console.error('Error fetching owner details:', error);
+                }
+                setLoading(false);
+            } else {
+                router.push('screens/owner/privateSignIn');
+                setLoading(false);
+            }
+        });
+        return unsubscribe;
+    }, []);
+    
+    if (loading) {
         return (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#6200ee" />
-          </View>
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#6200ee" />
+            </View>
         );
-      }
-//    const db = firebase.firestore();
+    }
 
     // Handler to add a new route input
     const addRoute = () => {
@@ -63,53 +94,50 @@ const AddRegisterDriverBusScreen1 = () => {
 
     // Handler to save details and navigate to the next screen with the data
     const handleSubmit = async () => {
-        try{
-        const normalizedPlateNum = licencePlateNum.trim().toUpperCase();
-        const normalizedPhoneNum = ownerPhoneNumber.trim();
-        if (!normalizedPlateNum) {
-            console.error("License Plate Number is required.");
-            return;
-        }
-         // Reference to the specific bus's route collection in Firestore
-        const busRef = doc(db, `privateOwners/${normalizedPhoneNum}/buses/${normalizedPlateNum}`);
-        // Create the bus document inside the buses collection with the license plate number
-        await setDoc(busRef, { licencePlateNum: normalizedPlateNum }, { merge: true });
+        try {
+            const normalizedPlateNum = licencePlateNum.trim().toUpperCase();
+            const normalizedPhoneNum = ownerPhoneNumber.trim();
+            
+            if (!normalizedPlateNum) {
+                console.error("License Plate Number is required.");
+                return;
+            }
+            
+            // Reference to the specific bus's route collection in Firestore
+            const busRef = doc(db, `privateOwners/${normalizedPhoneNum}/buses/${normalizedPlateNum}`);
+            // Create the bus document inside the buses collection with the license plate number
+            await setDoc(busRef, { licencePlateNum: normalizedPlateNum }, { merge: true });
 
-        // const routesCollectionRef = collection(db, `privateOwners/${normalizedPhoneNum}/routes`);
-        const routesCollectionRef = collection(db, `routes`);
-        
-        // Save each route to Firestore with an auto-generated document ID
-        for (const route of routes) {
-            const routeDocRef = doc(routesCollectionRef,`${normalizedPlateNum}-${route.busRoute}`);
-            await setDoc(routeDocRef, {
-                routeNum: route.routeNum,
-                routeName: route.busRoute,
+            const routesCollectionRef = collection(db, `routes`);
+            
+            // Save each route to Firestore with an auto-generated document ID
+            for (const route of routes) {
+                const routeDocRef = doc(routesCollectionRef, `${normalizedPlateNum}-${route.busRoute}`);
+                await setDoc(routeDocRef, {
+                    routeNum: route.routeNum,
+                    routeName: route.busRoute,
+                });
+            }
+
+            console.log("Data saved successfully to Firestore and locally");
+            
+            // Prepare the data to be passed to the next screen
+            const busData = {
+                licencePlateNum,
+                routes,
+            };
+
+            // Save the current form state before navigating
+            await AsyncStorage.setItem('busRegistrationFormData_step1', JSON.stringify(busData));
+
+            router.push({
+                pathname: 'screens/owner/addRegisterDriverBusScreen1.1',
+                params: { busData: JSON.stringify(busData) },
             });
-        }
-
-        console.log("Data saved successfully to Firestore and locally:");
-          // Pass data to the next screen
-          const busData = {
-            licencePlateNum,
-            routes,
-        };
-
-        router.push({
-            pathname: 'screens/owner/addRegisterDriverBusScreen1.1', // Adjust this path as needed
-            params: { busData: JSON.stringify(busData) }, // Serialize the object
-        });
-
-        // Navigate to the next screen and pass the bus data as a parameter
-        // router.push({
-        //     pathname: 'screens/owner/addRegisterDriverBusScreen2', // Adjust this path as needed
-        //     params: { busData: JSON.stringify(busData) },
-        // });
         } catch (error) {
-         console.error("Error saving data:", error);
+            console.error("Error saving data:", error);
         }
-
     };
-
 
     return (
         <SafeAreaView style={styles.container}>
@@ -235,5 +263,10 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
         width: '100%',
         alignSelf: 'center',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });
