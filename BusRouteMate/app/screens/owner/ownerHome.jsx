@@ -5,7 +5,7 @@ import { router, useRouter } from 'expo-router';
 import { auth } from '../../db/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
 import { FontAwesome5 } from '@expo/vector-icons';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const OwnerHome = () => {
   const route = useRouter();
   const [loading, setLoading] = useState(true);
@@ -21,6 +21,21 @@ const OwnerHome = () => {
     });
     return unsubscribe;
   }, []);
+
+  const navigateToAddDriverBusScreen = async () => {
+    try {
+      // Set marker that we're coming from home
+      await AsyncStorage.setItem('lastScreenVisited', 'home');
+      // Clear any previous form data
+      await AsyncStorage.removeItem('busRegistrationFormData_step1');
+      await AsyncStorage.removeItem('busRegistrationFormData_step1Sub');
+    } catch (error) {
+      console.error("Error preparing for form navigation:", error);
+    }
+    
+    // Navigate to form
+    router.push('screens/owner/addRegisterDriverBusScreen1');
+  };
 
   if (loading) {
     return (
@@ -38,7 +53,7 @@ const OwnerHome = () => {
 
       <View style={styles.cardsContainer}>
         {/* Card 1 */}
-        <Card style={styles.card} onPress={() => router.push('screens/owner/addRegisterDriverBusScreen1')}>
+        <Card style={styles.card} onPress={() => navigateToAddDriverBusScreen()}>
           <Card.Content style={styles.cardContent}>
             <Text style={styles.title}>Add/Register Buses and Driver</Text>
             <View style={styles.titleUnderline} />
