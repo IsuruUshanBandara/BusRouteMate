@@ -99,6 +99,32 @@ const AddRegisterDriverBusScreen3 = () => {
         }
     };
 
+    // Add this function to check for duplicate emails
+    const hasDuplicateEmails = (drivers) => {
+        const emails = drivers.map(driver => driver.email.trim().toLowerCase()).filter(email => email !== '');
+        const uniqueEmails = new Set(emails);
+        return emails.length !== uniqueEmails.size;
+    };
+    
+    // Add a function to find duplicate email index pairs
+    const findDuplicateEmailIndices = (drivers) => {
+        const emailIndices = {};
+        const duplicates = [];
+        
+        drivers.forEach((driver, index) => {
+        const email = driver.email.trim().toLowerCase();
+        if (!email) return;
+        
+        if (emailIndices[email] !== undefined) {
+            duplicates.push({ first: emailIndices[email], second: index });
+        } else {
+            emailIndices[email] = index;
+        }
+        });
+        
+        return duplicates;
+    };
+
     const addDriver = () => {
         setDrivers([...drivers, { 
             phoneNum: '', 
@@ -206,12 +232,23 @@ const AddRegisterDriverBusScreen3 = () => {
             setDrivers(updatedDrivers);
             return;
         }
-
+    
+        // Check for duplicate emails
+        const updatedDrivers = [...drivers];
+        const duplicates = findDuplicateEmailIndices(updatedDrivers);
+        
+        // If this email is part of a duplicate pair
+        const isDuplicate = duplicates.some(pair => pair.first === index || pair.second === index);
+        if (isDuplicate) {
+            updatedDrivers[index].errors.email = 'This email is already used for another driver';
+            setDrivers(updatedDrivers);
+            return;
+        }
+    
         try {
             setLoading(true);
             const { emailExists, registeredForBus, message } = await checkExistingUser(email);
             
-            const updatedDrivers = [...drivers];
             updatedDrivers[index].isExistingUser = emailExists;
             updatedDrivers[index].registeredForBus = registeredForBus;
             updatedDrivers[index].emailChecked = true;
@@ -237,6 +274,23 @@ const AddRegisterDriverBusScreen3 = () => {
     };
 
     const handleSubmit = async () => {
+
+         // Check for duplicate emails first
+        if (hasDuplicateEmails(drivers)) {
+            // Find and mark all duplicates
+            const updatedDrivers = [...drivers];
+            const duplicates = findDuplicateEmailIndices(updatedDrivers);
+            
+            duplicates.forEach(pair => {
+                updatedDrivers[pair.first].errors.email = 'Duplicate email address';
+                updatedDrivers[pair.second].errors.email = 'Duplicate email address';
+            });
+            
+            setDrivers(updatedDrivers);
+            Alert.alert("Validation Error", "Please ensure each driver has a unique email address");
+            return;
+        }
+
         // Validate all inputs first
         let allValid = true;
         
@@ -372,7 +426,18 @@ const AddRegisterDriverBusScreen3 = () => {
             updatedDrivers[index].isExistingUser = false;
             updatedDrivers[index].registeredForBus = false;
             updatedDrivers[index].emailChecked = false;
+
+        // Clear duplicate email errors on other drivers with the same email
+        if (updatedDrivers[index].email !== value) {
+            updatedDrivers.forEach((driver, i) => {
+                if (i !== index && 
+                    driver.email.trim().toLowerCase() === updatedDrivers[index].email.trim().toLowerCase() &&
+                    driver.errors.email === 'Duplicate email address') {
+                    driver.errors.email = '';
+                }
+            });
         }
+    }
         
         setDrivers(updatedDrivers);
     };
