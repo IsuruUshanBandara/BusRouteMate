@@ -6,6 +6,7 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../../db/firebaseConfig';
+import { useNavigation, StackActions } from '@react-navigation/native';
 import { GOOGLE_MAPS_API_KEY } from '@env';
 
 const { width, height } = Dimensions.get('window');
@@ -14,7 +15,7 @@ const LATITUDE_DELTA = 0.05;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 
 const EditBusRouteMap = () => {
-  const router = useRouter();
+  const navigation = useNavigation();
   const { plateNumber, routeDocId } = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -169,7 +170,7 @@ const EditBusRouteMap = () => {
       Alert.alert(
         'Success',
         'Route updated successfully',
-        [{ text: 'OK', onPress: () => router.replace('/screens/owner/manageDriverBusScreen') }]
+        [{ text: 'OK', onPress: () =>  navigation.pop(2)}]
       );
     } catch (error) {
       console.error('Error saving route:', error);

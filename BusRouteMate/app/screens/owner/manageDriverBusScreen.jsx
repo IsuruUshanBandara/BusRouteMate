@@ -286,8 +286,27 @@ const ManageBusesScreen = () => {
           text: "Delete", 
           onPress: async () => {
             try {
-              // Delete the route document
+              // Step 1: Check if there are multiple routes for this bus plate by examining document IDs
+              console.log(`Checking for multiple routes with plate number: ${plateNumber}`);
+              
+              const allRoutesSnapshot = await getDocs(collection(db, 'routes'));
+              let routeCount = 0;
+              
+              // Count documents where ID starts with plateNumber followed by hyphen
+              allRoutesSnapshot.forEach(doc => {
+                // Check if document ID starts with the plate number (e.g., "PFP1123-Kegalle-Avissawella")
+                if (doc.id.startsWith(`${plateNumber}-`)) {
+                  routeCount++;
+                  console.log(`Found route with matching plate: ${doc.id}`);
+                }
+              });
+              
+              const hasMultipleRoutes = routeCount > 1;
+              console.log(`Found ${routeCount} routes for bus plate ${plateNumber}`);
+              
+              // Step 2: Delete the specific route document
               await deleteDoc(doc(db, 'routes', routeDocId));
+              console.log(`Deleted route document: ${routeDocId}`);
               
               // Update state to remove deleted route
               const updatedRoutes = busRoutes.filter(item => item.routeDocId !== routeDocId);
@@ -298,10 +317,87 @@ const ManageBusesScreen = () => {
                 filteredBusRoutes.filter(item => item.routeDocId !== routeDocId)
               );
               
-              Alert.alert("Success", "Bus route deleted successfully");
+              // After deletion, we need to check if there are still other routes for this bus
+              // We subtract 1 from the original count because we just deleted one
+              const remainingRoutes = routeCount - 1;
+              
+              // If there are no remaining routes for this bus plate, perform cascade deletes
+              if (remainingRoutes === 0) {
+                console.log(`This was the only route for bus ${plateNumber}. Performing cascade deletes.`);
+                
+                // Step 3: Delete all related passenger feedback
+                try {
+                  console.log(`Deleting passenger feedback for bus ${plateNumber}`);
+                  const allFeedbackDocs = await getDocs(collection(db, 'passengerFeedback'));
+                  const matchingFeedbackDocs = [];
+                  
+                  allFeedbackDocs.forEach(doc => {
+                    if (doc.id.startsWith(`${plateNumber}-`)) {
+                      matchingFeedbackDocs.push(doc.ref);
+                      console.log(`Found matching feedback document: ${doc.id}`);
+                    }
+                  });
+                  
+                  for (const docRef of matchingFeedbackDocs) {
+                    await deleteDoc(docRef);
+                    console.log(`Deleted feedback document: ${docRef.path}`);
+                  }
+                } catch (feedbackDeleteError) {
+                  console.error('Error deleting passenger feedback:', feedbackDeleteError);
+                }
+                
+                // Step 4: Delete the driver details document
+                try {
+                  console.log(`Searching for driver documents with plate number: ${plateNumber}`);
+                  
+                  // Get all documents from driverDetails collection
+                  const allDriverDocs = await getDocs(collection(db, 'driverDetails'));
+                  const matchingDriverDocs = [];
+                  
+                  // Find all documents where ID starts with the plate number
+                  allDriverDocs.forEach(doc => {
+                    if (doc.id.startsWith(`${plateNumber}-`)) {
+                      matchingDriverDocs.push(doc.ref);
+                      console.log(`Found matching driver document: ${doc.id}`);
+                    }
+                  });
+                  
+                  // Delete all matching documents
+                  for (const docRef of matchingDriverDocs) {
+                    await deleteDoc(docRef);
+                    console.log(`Deleted driver document: ${docRef.path}`);
+                  }
+                  
+                  console.log(`Completed driver document deletion. Found and deleted ${matchingDriverDocs.length} documents`);
+                } catch (driverDeleteError) {
+                  console.error('Error deleting driver details:', driverDeleteError);
+                }
+                
+                // Step 5: Delete the bus from the owner's buses subcollection
+                try {
+                  if (userDetails && userDetails.phoneNumber) {
+                    const ownerBusRef = doc(
+                      db, 
+                      'privateOwners', 
+                      userDetails.phoneNumber, 
+                      'buses', 
+                      plateNumber
+                    );
+                    await deleteDoc(ownerBusRef);
+                    console.log(`Deleted bus ${plateNumber} from owner subcollection`);
+                  }
+                } catch (ownerBusDeleteError) {
+                  console.error('Error deleting bus from owner collection:', ownerBusDeleteError);
+                }
+                
+                Alert.alert("Success", "Bus route and all related data deleted successfully");
+              } else {
+                console.log(`Bus ${plateNumber} has ${remainingRoutes} other routes. Only deleting the specific route.`);
+                Alert.alert("Success", "Bus route deleted successfully. Other routes for this bus remain active.");
+              }
             } catch (error) {
-              console.error('Error deleting bus route:', error);
-              Alert.alert("Error", "Failed to delete bus route. Please try again.");
+              console.error('Error during delete operation:', error);
+              Alert.alert("Error", "Failed to complete delete operation. Please try again.");
             }
           },
           style: "destructive"
