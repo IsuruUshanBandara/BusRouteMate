@@ -1,6 +1,6 @@
-import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator, FlatList } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator, FlatList, Alert } from 'react-native';
 import React, { useEffect, useState, useRef } from 'react';
-import { Button, IconButton } from 'react-native-paper';
+import { Button, IconButton, Card, Switch } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useLocalSearchParams } from 'expo-router';
 import { auth, db } from '../../db/firebaseConfig';
@@ -9,6 +9,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { GOOGLE_MAPS_API_KEY } from '@env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next'; // Import useTranslation hook
 
 const GOOGLE_API_KEY = GOOGLE_MAPS_API_KEY;
 const STORAGE_KEY = 'busRegistrationFormData_step1Sub';
@@ -116,6 +117,13 @@ const AddRegisterDriverBusScreen1Sub = () => {
     const [ownerPhoneNumber, setOwnerPhoneNumber] = useState('');
     const [formElements, setFormElements] = useState([]);
     const [dataLoaded, setDataLoaded] = useState(false);
+    const [isGuidanceSinhala, setIsGuidanceSinhala] = useState(false); // State for language toggle
+    const { t, i18n } = useTranslation(); // Use the translation hook
+    
+    // Toggle language function specific for guidance card
+    const toggleGuidanceLanguage = () => {
+        setIsGuidanceSinhala(!isGuidanceSinhala);
+    };
     
     useEffect(() => {
         const loadFormData = async () => {
@@ -246,6 +254,13 @@ const AddRegisterDriverBusScreen1Sub = () => {
                 routeNum: parsedBusData[currentRouteIndex]?.routeNum || ''
             });
             
+            // Add the user guidance card with language toggle info
+            elements.push({
+                type: 'routeGuidance',
+                id: 'routeGuidance',
+                isGuidanceSinhala: isGuidanceSinhala
+            });
+            
             elements.push({
                 type: 'origin',
                 id: 'origin',
@@ -276,7 +291,7 @@ const AddRegisterDriverBusScreen1Sub = () => {
         }
         
         setFormElements(elements);
-    }, [parsedBusData, currentRouteIndex, origin, destination, passingCities]);
+    }, [parsedBusData, currentRouteIndex, origin, destination, passingCities, isGuidanceSinhala]);
     
     if(loading) {
         return (
@@ -302,7 +317,33 @@ const AddRegisterDriverBusScreen1Sub = () => {
         }
     };
 
+    const validateForm = () => {
+        // Check if origin and destination are filled
+        if (!origin || origin.trim() === '') {
+            Alert.alert('Missing Information', 'Please enter an origin city.');
+            return false;
+        }
+        
+        if (!destination || destination.trim() === '') {
+            Alert.alert('Missing Information', 'Please enter a destination city.');
+            return false;
+        }
+        
+        // Check if at least one passing city is filled
+        const hasValidPassingCity = passingCities.some(city => city && city.trim() !== '');
+        if (!hasValidPassingCity) {
+            Alert.alert('Missing Information', 'Please enter at least one intermediate stop.');
+            return false;
+        }
+        
+        return true;
+    };
+
     const saveCurrentRoute = () => {
+        if (!validateForm()) {
+            return null;
+        }
+
         const updatedPassingCities = [origin, ...passingCities, destination];
         
         const existingRouteIndex = routeData.findIndex(route => 
@@ -336,6 +377,10 @@ const AddRegisterDriverBusScreen1Sub = () => {
         if (currentRouteIndex > 0) {
             // Save current route data first
             const updatedRoutes = saveCurrentRoute();
+            
+            if (!updatedRoutes) {
+                return; // Validation failed
+            }
             
             try {
                 await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -381,6 +426,10 @@ const AddRegisterDriverBusScreen1Sub = () => {
         // Save current route data first
         const updatedRoutes = saveCurrentRoute();
         
+        if (!updatedRoutes) {
+            return; // Validation failed
+        }
+        
         try {
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({
                 parsedBusData,
@@ -425,6 +474,10 @@ const AddRegisterDriverBusScreen1Sub = () => {
         try {
             // First update the current route data
             const updatedPassingCities = [origin, ...passingCities, destination];
+            
+            if (!validateForm()) {
+                return; // Validation failed
+            }
             
             const existingRouteIndex = routeData.findIndex(route => 
                 route.routeNum === parsedBusData[currentRouteIndex].routeNum
@@ -490,6 +543,61 @@ const AddRegisterDriverBusScreen1Sub = () => {
                         )}
                     </View>
                 );
+            case 'routeGuidance':
+                // Translation objects for guidance card
+                const guidanceTranslations = {
+                    en: {
+                        title: "How to Enter Bus Route",
+                        instructions: "Please add all cities where the bus stops, in order from start to end:",
+                        step1: "1. Enter the starting city in \"Origin City\"",
+                        step2: "2. Add all stops between start and end",
+                        step3: "3. Enter the final city in \"Destination City\"",
+                        note: "You must provide the origin, destination, and at least one intermediate stop to continue.",
+                        languageToggle: "සිංහල"
+                    },
+                    si: {
+                        title: "බස් ගමන් මාර්ගය ඇතුළත් කරන්නේ කෙසේද",
+                        instructions: "කරුණාකර බස් රථය නැවැත්වෙන සියලුම නගර ආරම්භයේ සිට අවසානය දක්වා අනුපිළිවෙලින් එකතු කරන්න:",
+                        step1: "1. \"ආරම්භක නගරය\" තුළ ආරම්භක නගරය ඇතුළත් කරන්න",
+                        step2: "2. මුල සහ අවසානය අතර සියලුම නැවතුම් එකතු කරන්න",
+                        step3: "3. \"ගමනාන්ත නගරය\" තුළ අවසාන නගරය ඇතුළත් කරන්න",
+                        note: "ඉදිරියට යාමට ඔබ මූලාරම්භය, ගමනාන්තය සහ අවම වශයෙන් එක් අතරමැදි නැවතුමක් සැපයිය යුතුය.",
+                        languageToggle: "English"
+                    }
+                };
+                
+                // Select the appropriate language based on toggle state
+                const lang = item.isGuidanceSinhala ? 'si' : 'en';
+                const translations = guidanceTranslations[lang];
+
+                return (
+                    <Card style={styles.guidanceCard}>
+                        <Card.Content>
+                            <View style={styles.languageToggleContainer}>
+                                <Text style={styles.guidanceTitle}>{translations.title}</Text>
+                                <View style={styles.toggleContainer}>
+                                    <Text>{translations.languageToggle}</Text>
+                                    <Switch
+                                        value={item.isGuidanceSinhala}
+                                        onValueChange={toggleGuidanceLanguage}
+                                        color="#1976D2"
+                                    />
+                                </View>
+                            </View>
+                            <Text style={styles.guidanceInstructions}>
+                                {translations.instructions}
+                            </Text>
+                            <View style={styles.guidanceSteps}>
+                                <Text style={styles.guidanceStep}>{translations.step1}</Text>
+                                <Text style={styles.guidanceStep}>{translations.step2}</Text>
+                                <Text style={styles.guidanceStep}>{translations.step3}</Text>
+                            </View>
+                            <Text style={styles.guidanceNote}>
+                                {translations.note}
+                            </Text>
+                        </Card.Content>
+                    </Card>
+                );
             case 'origin':
                 return (
                     <View>
@@ -544,38 +652,36 @@ const AddRegisterDriverBusScreen1Sub = () => {
                             Add In-Between City
                         </Button>
                         
-                        {/* <View style={styles.navigationButtons}> */}
-                            {!item.isFirstRoute && (
-                                <Button 
-                                    mode="outlined" 
-                                    style={styles.prevButton} 
-                                    onPress={handlePrevious}
-                                    icon="arrow-left"
-                                >
-                                    Previous
-                                </Button>
-                            )}
-                            
-                            {!item.isLastRoute ? (
-                                <Button 
-                                    mode="contained" 
-                                    style={styles.nextButton} 
-                                    onPress={handleNext}
-                                    icon="arrow-right"
-                                >
-                                    Next
-                                </Button>
-                            ) : (
-                                <Button 
-                                    mode="contained" 
-                                    style={styles.submitButton} 
-                                    onPress={handleSubmit}
-                                    icon="check"
-                                >
-                                    Save All Routes
-                                </Button>
-                            )}
-                        {/* </View> */}
+                        {!item.isFirstRoute && (
+                            <Button 
+                                mode="outlined" 
+                                style={styles.prevButton} 
+                                onPress={handlePrevious}
+                                icon="arrow-left"
+                            >
+                                Previous
+                            </Button>
+                        )}
+                        
+                        {!item.isLastRoute ? (
+                            <Button 
+                                mode="contained" 
+                                style={styles.nextButton} 
+                                onPress={handleNext}
+                                icon="arrow-right"
+                            >
+                                Next
+                            </Button>
+                        ) : (
+                            <Button 
+                                mode="contained" 
+                                style={styles.submitButton} 
+                                onPress={handleSubmit}
+                                icon="check"
+                            >
+                                Save All Routes
+                            </Button>
+                        )}
                     </View>
                 );
             default:
@@ -713,5 +819,38 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
         color: '#424242',
+    },
+    guidanceCard: {
+        marginBottom: 20,
+        backgroundColor: '#F5F5F5',
+        borderLeftWidth: 4,
+        borderLeftColor: '#1976D2',
+    },
+    guidanceTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#1565C0',
+        marginBottom: 8,
+        flex: 1,
+    },
+    guidanceInstructions: {
+        fontSize: 14,
+        marginBottom: 10,
+        color: '#424242',
+    },
+    guidanceSteps: {
+        paddingLeft: 10,
+        marginBottom: 10,
+    },
+    guidanceStep: {
+        fontSize: 14,
+        color: '#424242',
+        marginBottom: 5,
+    },
+    guidanceNote: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#D32F2F',
+        fontStyle: 'italic',
     },
 });
