@@ -1,27 +1,23 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView,TouchableOpacity, Platform, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from 'react-native';
 import { TextInput, Button, HelperText } from 'react-native-paper';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { auth, db } from '../../db/firebaseConfig';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { getDoc, doc } from 'firebase/firestore';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const DriverSignIn = () => {
+const DriverForgotPassword = () => {
     const router = useRouter();
-    const { category } = useLocalSearchParams();
-    const [licensePlateNumber, setLicensePlateNumber] = useState('');
     const [email, setEmail] = useState('');
-    const [driverPassword, setDriverPassword] = useState('');
-    const [showDriverPassword, setShowDriverPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
     const { t } = useTranslation();
 
-    // Validation states
+    // Validation state
     const [emailError, setEmailError] = useState('');
-    const [licensePlateError, setLicensePlateError] = useState('');
 
     // Validate email
     const validateEmail = (email) => {
@@ -38,79 +34,91 @@ const DriverSignIn = () => {
         }
     };
 
-    // Validate license plate
-    const validateLicensePlate = (plate) => {
-        if (!plate) {
-            setLicensePlateError(t('License plate number is required'));
-            return false;
-        } else {
-            setLicensePlateError('');
-            return true;
-        }
-    };
-
-    const handleSignIn = async () => {
-        // Reset error message
+    const handleResetPassword = async () => {
+        // Reset messages
         setError('');
+        setSuccess('');
         
-        // Validate inputs
+        // Validate input
         const isEmailValid = validateEmail(email);
-        const isPlateValid = validateLicensePlate(licensePlateNumber);
         
-        if (!isEmailValid || !isPlateValid || !driverPassword) {
-            if (!driverPassword) {
-                setError(t('Password is required'));
-            }
+        if (!isEmailValid) {
             return;
         }
 
         try {
             setIsLoading(true);
+            const trimmedEmail = email.trim().toLowerCase();
             
-            // Create document ID in format "licenseplate-email"
-            const docId = `${licensePlateNumber.trim()}-${email.trim().toLowerCase()}`;
+            // Check if a driver with this email exists in the driverDetails collection
+            const driverExists = await checkDriverExists(trimmedEmail);
             
-            // Check if document exists in driverDetails collection
-            const driverDocRef = doc(db, "driverDetails", docId);
-            const driverDocSnap = await getDoc(driverDocRef);
-            
-            if (!driverDocSnap.exists()) {
-                setError(t('Driver with this license plate and email combination not found'));
-                setIsLoading(false);
+            if (!driverExists) {
+                setError(t('No driver account found with this email address'));
                 return;
             }
             
-            // Document exists, proceed with authentication
-            const userCredential = await signInWithEmailAndPassword(auth, email, driverPassword);
-            const user = userCredential.user;
-            console.log("Driver signed in successfully:", user);
+            // Send password reset email using Firebase Auth
+            await sendPasswordResetEmail(auth, trimmedEmail);
             
-            // Navigate to driver home screen
-            router.push({ 
-                pathname: '../../screens/driver/driverRideStartCancelScreen',
-                params: { licensePlateNumber: licensePlateNumber }
-            });
+            // Show success message
+            setSuccess(t('Password reset link has been sent to your email'));
+            setEmail(''); // Clear the email field after successful submission
             
         } catch (error) {
-            console.error("Error signing in driver:", error.message);
+            console.error("Error sending password reset email:", error.message);
             
             // Handle different Firebase Auth errors
             switch (error.code) {
-                case 'auth/invalid-credential':
                 case 'auth/invalid-email':
+                    setError(t('Invalid email address'));
+                    break;
                 case 'auth/user-not-found':
-                case 'auth/wrong-password':
-                    setError(t('Invalid email or password'));
+                    setError(t('No account found with this email address'));
                     break;
                 case 'auth/too-many-requests':
-                    setError(t('Too many failed login attempts. Please try again later'));
+                    setError(t('Too many requests. Please try again later'));
                     break;
                 default:
-                    setError(t('Failed to sign in. Please try again'));
+                    setError(t('Failed to send reset email. Please try again'));
             }
         } finally {
             setIsLoading(false);
         }
+    };
+    
+    // Check if driver exists with this email in driverDetails collection
+    const checkDriverExists = async (email) => {
+        try {
+            // Query the driverDetails collection
+            const driverCollectionRef = collection(db, "driverDetails");
+            
+            // We need to find documents where the ID ends with this email
+            // Since we can't query by document ID suffix directly, we'll fetch all documents
+            // and filter them manually (efficient for small collections)
+            const querySnapshot = await getDocs(driverCollectionRef);
+            
+            // Check if any document ID ends with the email pattern
+            // Document IDs are in format: licenseplate-email
+            for (const doc of querySnapshot.docs) {
+                const docId = doc.id;
+                if (docId.indexOf('-') !== -1) {
+                    const docEmail = docId.split('-')[1]; // Get the part after the dash
+                    if (docEmail.toLowerCase() === email.toLowerCase()) {
+                        return true; // Found a matching driver
+                    }
+                }
+            }
+            
+            return false; // No matching driver found
+        } catch (error) {
+            console.error("Error checking driver existence:", error);
+            throw error;
+        }
+    };
+
+    const navigateToSignIn = () => {
+        router.back(); // Go back to the sign-in screen
     };
     
     return (
@@ -131,24 +139,10 @@ const DriverSignIn = () => {
                             </View>
 
                             <View style={styles.formContainer}>
-                                <Text style={styles.subHeading}>{t('signIn')}</Text>
-
-                                <TextInput
-                                    style={styles.input}
-                                    label={t('plate num')}
-                                    value={licensePlateNumber}
-                                    onChangeText={text => {
-                                        setLicensePlateNumber(text);
-                                        validateLicensePlate(text);
-                                    }}
-                                    mode='outlined'
-                                    outlineColor={licensePlateError ? "#B00020" : "#1976d2"}
-                                    activeOutlineColor="#1976d2"
-                                    theme={{ colors: { primary: '#1976d2' } }}
-                                    left={<TextInput.Icon icon="card-text" color="#1976d2" />}
-                                    error={!!licensePlateError}
-                                />
-                                {!!licensePlateError && <HelperText type="error">{licensePlateError}</HelperText>}
+                                <Text style={styles.subHeading}>{t('Reset Password')}</Text>
+                                <Text style={styles.instructions}>
+                                    {t('Enter your email address below and we\'ll send you a link to reset your password')}
+                                </Text>
 
                                 <TextInput
                                     style={styles.input}
@@ -168,46 +162,38 @@ const DriverSignIn = () => {
                                     error={!!emailError}
                                 />
                                 {!!emailError && <HelperText type="error">{emailError}</HelperText>}
-
-                                <TextInput
-                                    style={styles.input}
-                                    label={t('Password')}
-                                    value={driverPassword}
-                                    onChangeText={text => setDriverPassword(text)}
-                                    mode='outlined'
-                                    secureTextEntry={!showDriverPassword}
-                                    outlineColor="#1976d2"
-                                    activeOutlineColor="#1976d2"
-                                    theme={{ colors: { primary: '#1976d2' } }}
-                                    left={<TextInput.Icon icon="lock" color="#1976d2" />}
-                                    right={
-                                        <TextInput.Icon
-                                            icon={showDriverPassword ? 'eye-off' : 'eye'}
-                                            color="#1976d2"
-                                            onPress={() => setShowDriverPassword(!showDriverPassword)}
-                                        />
-                                    }
-                                />
                                 
                                 {!!error && (
                                     <View style={styles.errorContainer}>
                                         <Text style={styles.errorText}>{error}</Text>
                                     </View>
                                 )}
-                                <TouchableOpacity onPress={() => router.push('driver/driverForgotPassword')}>
-                                    <Text style={styles.forgotPassword}>{t('forgot password')}</Text>
-                                </TouchableOpacity>
+
+                                {!!success && (
+                                    <View style={styles.successContainer}>
+                                        <Text style={styles.successText}>{success}</Text>
+                                    </View>
+                                )}
                                 
                                 <Button 
                                     mode='contained' 
-                                    style={styles.signInButton} 
+                                    style={styles.resetButton} 
                                     labelStyle={styles.buttonText}
-                                    onPress={handleSignIn}
+                                    onPress={handleResetPassword}
                                     loading={isLoading}
                                     disabled={isLoading}
                                     buttonColor="#1976d2"
                                 >
-                                    {isLoading ? t('Signing In...') : t('signIn')}
+                                    {isLoading ? t('Sending...') : t('Send Reset Link')}
+                                </Button>
+
+                                <Button 
+                                    mode='text' 
+                                    style={styles.backButton} 
+                                    labelStyle={styles.backButtonText}
+                                    onPress={navigateToSignIn}
+                                >
+                                    {t('Back to Sign In')}
                                 </Button>
                             </View>
                         </View>
@@ -218,7 +204,7 @@ const DriverSignIn = () => {
     );
 };
 
-export default DriverSignIn;
+export default DriverForgotPassword;
 
 const styles = StyleSheet.create({
     container: {
@@ -272,8 +258,14 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: 'bold',
         textAlign: 'center',
-        marginBottom: 20,
+        marginBottom: 10,
         color: '#1976d2',
+    },
+    instructions: {
+        fontSize: 14,
+        textAlign: 'center',
+        marginBottom: 20,
+        color: '#757575',
     },
     input: {
         marginVertical: 8,
@@ -291,7 +283,19 @@ const styles = StyleSheet.create({
         color: '#B00020',
         fontSize: 14,
     },
-    signInButton: {
+    successContainer: {
+        backgroundColor: '#E8F5E9',
+        padding: 10,
+        borderRadius: 5,
+        marginVertical: 10,
+        borderLeftWidth: 4,
+        borderLeftColor: '#2E7D32',
+    },
+    successText: {
+        color: '#2E7D32',
+        fontSize: 14,
+    },
+    resetButton: {
         padding: 5,
         borderRadius: 10,
         elevation: 2,
@@ -301,11 +305,11 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
     },
-     forgotPassword: {
-        textAlign: 'right',
-        marginTop: 8,
-        marginBottom: 20,
+    backButton: {
+        marginTop: 15,
+    },
+    backButtonText: {
         color: '#1976d2',
-        fontWeight: '500',
+        fontSize: 14,
     },
 });
