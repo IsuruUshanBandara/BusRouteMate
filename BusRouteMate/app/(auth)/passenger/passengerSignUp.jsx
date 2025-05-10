@@ -2,10 +2,12 @@ import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView,
 import React, { useState, useRef, useEffect } from 'react';
 import { TextInput, Button, Menu, Provider, Avatar, HelperText } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import { createUserWithEmailAndPassword } from 'firebase/auth';  
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, fetchSignInMethodsForEmail } from 'firebase/auth';  
 import { auth, db } from '../../db/firebaseConfig'; 
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { LinearGradient } from 'expo-linear-gradient';
+import { LogBox } from 'react-native';
+LogBox.ignoreLogs(['auth/email-already-in-use']);
 
 const PassengerSignUp = () => {
     const router = useRouter();
@@ -19,6 +21,7 @@ const PassengerSignUp = () => {
     const [securityQuestion, setSecurityQuestion] = useState('');
     const [menuVisible, setMenuVisible] = useState(false);
     const [formContainerWidth, setFormContainerWidth] = useState(Dimensions.get('window').width - 40);
+    const [isLoading, setIsLoading] = useState(false);
     
     // Error states
     const [errors, setErrors] = useState({
@@ -116,25 +119,110 @@ const PassengerSignUp = () => {
         return !Object.values(newErrors).some(error => error !== '');
     };
 
-    const handleSignUp = async () => {
-        // Validate all fields before submitting
-        if (!validateForm()) {
-            setErrors(prev => ({...prev, form: 'Please fix the errors before submitting'}));
-            return;
-        }
-
+    // Check if user already exists in Firebase Authentication
+    const checkIfUserExists = async (email) => {
         try {
-            // Create user in Firebase Authentication
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+            const methods = await fetchSignInMethodsForEmail(auth, email);
+            return methods.length > 0;
+        } catch (error) {
+            console.error("Error checking if user exists:", error);
+            return false;
+        }
+    };
 
-            // Reference to Firestore document
+    // Check if user details exist in Firestore
+    const checkUserDetailsExist = async (email) => {
+        try {
             const userDocRef = doc(db, "passengerDetails", email);
-
-            // Check if the document already exists
             const docSnapshot = await getDoc(userDocRef);
-            if (!docSnapshot.exists()) {
-                // Store user details in Firestore with email as document ID
+            return docSnapshot.exists();
+        } catch (error) {
+            console.error("Error checking user details:", error);
+            return false;
+        }
+    };
+
+const handleSignUp = async () => {
+    // Clear previous form errors
+    setErrors(prev => ({...prev, form: ''}));
+    
+    // Validate all fields before submitting
+    if (!validateForm()) {
+        setErrors(prev => ({...prev, form: 'Please fix the errors before submitting'}));
+        return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+        // First check if user already exists in Firebase Auth
+        const userExists = await checkIfUserExists(email);
+        
+        if (userExists) {
+            console.log("User exists in Auth, checking Firestore document");
+            
+            // Check if user details exist in Firestore
+            const userDetailsExist = await checkUserDetailsExist(email);
+            
+            if (userDetailsExist) {
+                // Case 1: User exists in both Auth and Firestore
+                setErrors(prev => ({
+                    ...prev, 
+                    form: 'Account already exists. Please sign in instead.'
+                }));
+                setIsLoading(false);
+                return;
+            } else {
+                // Case 2: User exists in Auth but not in Firestore
+                try {
+                    console.log("User exists in Auth but not in Firestore. Attempting to sign in.");
+                    
+                    // Try to sign in first to verify credentials
+                    await signInWithEmailAndPassword(auth, email, password);
+                    console.log("Sign-in successful, creating Firestore document");
+                    
+                    // If sign-in is successful, create the missing Firestore document
+                    const userDocRef = doc(db, "passengerDetails", email);
+                    await setDoc(userDocRef, {
+                        email,
+                        phoneNumber,
+                        securityQuestion,
+                        securityQuestionAns,
+                        createdAt: new Date(),
+                    });
+                    
+                    console.log("Successfully created document in Firestore");
+                    
+                    // Navigate to sign-in page after successfully creating the document
+                    router.push('passenger/passengerSignIn');
+                } catch (signInError) {
+                    console.error("Sign-in verification error:", signInError.code, signInError.message);
+                    
+                    // If sign-in fails, it means the password is incorrect
+                    if (signInError.code === 'auth/wrong-password' || signInError.code === 'auth/invalid-credential') {
+                        setErrors(prev => ({
+                            ...prev, 
+                            form: 'An account with this email already exists. Please use the correct password or reset it.'
+                        }));
+                    } else {
+                        setErrors(prev => ({
+                            ...prev, 
+                            form: 'Failed to sign in: ' + (signInError.message || 'Unknown error')
+                        }));
+                    }
+                }
+            }
+        } else {
+            // Case 3: User doesn't exist in Auth - This is a genuine new user
+            console.log("Creating new user in Auth and Firestore");
+            
+            try {
+                // Create new user in Firebase Auth
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                console.log("Successfully created auth account");
+                
+                // Create user document in Firestore
+                const userDocRef = doc(db, "passengerDetails", email);
                 await setDoc(userDocRef, {
                     email,
                     phoneNumber,
@@ -143,14 +231,77 @@ const PassengerSignUp = () => {
                     createdAt: new Date(),
                 });
 
-                console.log("Successfully created passenger account");
+                console.log("Successfully created passenger document in Firestore");
                 router.push('passenger/passengerSignIn');
+            } catch (createError) {
+                console.error("Create user error:", createError.code, createError.message);
+                
+                // This is where the race condition might be happening
+                if (createError.code === 'auth/email-already-in-use') {
+                    // If we get here, it means our initial check missed it
+                    // Let's double-check the Firestore document now
+                    try {
+                        const userDetailsExist = await checkUserDetailsExist(email);
+                        
+                        if (!userDetailsExist) {
+                            // User exists in Auth but not in Firestore - try to sign in
+                            console.log("Email exists in Auth but not in Firestore (detected during creation). Attempting sign in.");
+                            
+                            // Try to sign in with provided credentials
+                            await signInWithEmailAndPassword(auth, email, password);
+                            
+                            // If sign-in works, create the document
+                            const userDocRef = doc(db, "passengerDetails", email);
+                            await setDoc(userDocRef, {
+                                email,
+                                phoneNumber,
+                                securityQuestion,
+                                securityQuestionAns,
+                                createdAt: new Date(),
+                            });
+                            
+                            console.log("Successfully created document after sign in");
+                            router.push('passenger/passengerSignIn');
+                            return;
+                        } else {
+                            // Both exist
+                            setErrors(prev => ({
+                                ...prev, 
+                                form: 'Account already exists. Please sign in instead.'
+                            }));
+                        }
+                    } catch (secondaryError) {
+                        console.error("Secondary error handling:", secondaryError);
+                        setErrors(prev => ({
+                            ...prev, 
+                            form: 'An account with this email exists. Please try signing in or use a different email.'
+                        }));
+                    }
+                } else if (createError.code === 'auth/invalid-email') {
+                    setErrors(prev => ({...prev, email: 'Invalid email format'}));
+                } else if (createError.code === 'auth/weak-password') {
+                    setErrors(prev => ({
+                        ...prev, 
+                        password: 'Password is too weak. Use at least 6 characters.'
+                    }));
+                } else {
+                    setErrors(prev => ({
+                        ...prev, 
+                        form: createError.message || 'Failed to create account'
+                    }));
+                }
             }
-        } catch (error) {
-            console.error("Sign-up error:", error);
-            setErrors(prev => ({...prev, form: error.message || 'Failed to create account'}));
         }
-    };
+    } catch (error) {
+        console.error("General sign-up error:", error);
+        setErrors(prev => ({
+            ...prev, 
+            form: 'An unexpected error occurred. Please try again.'
+        }));
+    } finally {
+        setIsLoading(false);
+    }
+};
 
     const securityQuestions = [
         "Name of your first pet?",
@@ -367,8 +518,10 @@ const PassengerSignUp = () => {
                                         onPress={handleSignUp}
                                         buttonColor="#1976d2"
                                         icon="account-plus"
+                                        loading={isLoading}
+                                        disabled={isLoading}
                                     >
-                                        Register Now
+                                        {isLoading ? 'Processing...' : 'Register Now'}
                                     </Button>
                                     
                                     <Button 
@@ -376,6 +529,7 @@ const PassengerSignUp = () => {
                                         onPress={() => router.push('passenger/passengerSignIn')}
                                         style={styles.backButton}
                                         labelStyle={styles.backButtonText}
+                                        disabled={isLoading}
                                     >
                                         Already have an account? Sign In
                                     </Button>
