@@ -211,10 +211,10 @@ const EditBusRouteMap = () => {
       <View style={styles.infoContainer}>
         <Text style={styles.busText}>Bus: {plateNumber}</Text>
         <Text style={styles.routeText}>{routeData.routeName} (Route {routeData.routeNum})</Text>
-        <View style={styles.statsContainer}>
+        {/* <View style={styles.statsContainer}>
           <Text style={styles.statText}>Distance: {(routeData.distance / 1000).toFixed(1)} km</Text>
           <Text style={styles.statText}>Duration: {Math.ceil(routeData.duration / 60)} mins</Text>
-        </View>
+        </View> */}
       </View>
 
       <MapView
