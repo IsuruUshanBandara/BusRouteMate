@@ -435,8 +435,8 @@ const DriverRideStartCancel = () => {
       const subscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
-          distanceInterval: 10, // Update every 10 meters
-          timeInterval: 5000,   // Or at least every 5 seconds
+          distanceInterval: 10, // put 10 to Update every 10 meters
+          timeInterval: 5000,   // put 5000 then it update every 5 seconds
         },
         (newLocation) => {
           const { latitude, longitude } = newLocation.coords;
@@ -818,7 +818,7 @@ const DriverRideStartCancel = () => {
               <Text style={styles.cardTitle}>Cancel Your Ride</Text>
               <View style={styles.warningContainer}>
                 <Text style={styles.warningText}>
-                  You are not allowed to cancel the ride unless the bus faces any 
+                  You are not allowed to cancel the ride until the destination, unless the bus faces any 
                   (accidents, tire puncture, or technical failure) that causes the bus not to move.
                 </Text>
               </View>
