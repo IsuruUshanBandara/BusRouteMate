@@ -169,11 +169,11 @@ const NormalScreenlayout = () => {
       <Appbar.Header style={Styles.appBarHeader}>
         <Appbar.BackAction onPress={handleBackAction} />
         <Appbar.Content />
-        <Appbar.Action
+        {/* <Appbar.Action
           icon="bell"
           onPress={handleNotificationPress}
           style={Styles.bellActionIcon}
-        />
+        /> */}
         <Appbar.Action
           icon="logout"
           onPress={handleLogout}

@@ -74,13 +74,13 @@ const BusTrackingScreen = () => {
               // Step 4: Extract relevant data
               const resultItem = {
                 id: doc.id,
-                route: `${routeData.origin} - ${routeData.destination}`,
+                route: routeData.busRoute,
                 busNo: routeData.routeNum,
                 rideStartTime: formatTimeOnly(routeData.updatedAt),
                 currentCity: routeData.currentCity,
                 licencePlate: routeData.licencePlateNum,
                 updatedAt: new Date(routeData.lastUpdated).toLocaleString(),
-                routeName: routeData.routeName || routeData.busRoute, // Get route name for navigation
+                routeName: routeData.busRoute, // Get route name for navigation
               };
               
               results.push(resultItem);
