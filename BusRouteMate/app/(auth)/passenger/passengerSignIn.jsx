@@ -4,8 +4,8 @@ import { TextInput, Button, HelperText } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { auth } from '../../db/firebaseConfig';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { db } from '../../db/firebaseConfig'; // Import Firestore
-import { doc, getDoc } from 'firebase/firestore'; // Import Firestore functions
+import { db } from '../../db/firebaseConfig'; 
+import { doc, getDoc } from 'firebase/firestore'; 
 import { LinearGradient } from 'expo-linear-gradient';
 import { LogBox } from 'react-native';
 LogBox.ignoreLogs(['firebase/wrong-password', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email', 'auth/too-many-requests','Error (auth/invalid-credential)']);

@@ -77,7 +77,6 @@ const PrivateBusSignUp = () => {
 
     const validateNationalId = (id) => {
         if (!id) return 'National ID is required';
-        // Add more specific validation rules for national ID if needed
         return '';
     };
 

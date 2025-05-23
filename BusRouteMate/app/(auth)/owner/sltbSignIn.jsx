@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     },
     centeredContent: {
         flex: 1,
-        justifyContent: 'center', // Centers the content vertically on the screen
+        justifyContent: 'center',
         paddingHorizontal: '5%',
     },
     subHeading: {

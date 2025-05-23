@@ -9,7 +9,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { GOOGLE_MAPS_API_KEY } from '@env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useTranslation } from 'react-i18next'; // Import useTranslation hook
+import { useTranslation } from 'react-i18next'; 
 
 const GOOGLE_API_KEY = GOOGLE_MAPS_API_KEY;
 const STORAGE_KEY = 'busRegistrationFormData_step1Sub';
@@ -117,8 +117,8 @@ const AddRegisterDriverBusScreen1Sub = () => {
     const [ownerPhoneNumber, setOwnerPhoneNumber] = useState('');
     const [formElements, setFormElements] = useState([]);
     const [dataLoaded, setDataLoaded] = useState(false);
-    const [isGuidanceSinhala, setIsGuidanceSinhala] = useState(false); // State for language toggle
-    const { t, i18n } = useTranslation(); // Use the translation hook
+    const [isGuidanceSinhala, setIsGuidanceSinhala] = useState(false); 
+    const { t, i18n } = useTranslation(); 
     
     // Toggle language function specific for guidance card
     const toggleGuidanceLanguage = () => {
@@ -544,7 +544,7 @@ const AddRegisterDriverBusScreen1Sub = () => {
                     </View>
                 );
             case 'routeGuidance':
-                // Translation objects for guidance card
+                
                 const guidanceTranslations = {
                     en: {
                         title: "How to Enter Bus Route",

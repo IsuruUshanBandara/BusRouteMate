@@ -26,7 +26,7 @@ const AddRegisterDriverBusScreen1 = () => {
     useEffect(() => {
         const loadSavedData = async () => {
             try {
-                // If we're returning with passed parameters
+                
                 if (params?.busData) {
                     const busData = JSON.parse(params.busData);
                     setLicencePlateNum(busData.licencePlateNum || '');
@@ -38,7 +38,7 @@ const AddRegisterDriverBusScreen1 = () => {
                         busRoute: Array(busData.routes?.length || 1).fill(false)
                     });
                 } else {
-                    // Otherwise try to load from storage
+                    
                     const savedFormData = await AsyncStorage.getItem('busRegistrationFormData_step1');
                     if (savedFormData) {
                         const formData = JSON.parse(savedFormData);
@@ -116,7 +116,7 @@ const AddRegisterDriverBusScreen1 = () => {
         const newRoutes = [...routes, { routeNum: '', busRoute: '' }];
         setRoutes(newRoutes);
         
-        // Also update the error state arrays
+       
         setErrors({
             ...errors,
             routeNum: [...errors.routeNum, false],
@@ -130,7 +130,7 @@ const AddRegisterDriverBusScreen1 = () => {
             const newRoutes = routes.slice(0, -1);
             setRoutes(newRoutes);
             
-            // Also update the error state arrays
+            
             setErrors({
                 ...errors,
                 routeNum: errors.routeNum.slice(0, -1),
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
         width: '100%',
         alignSelf: 'center',
-        backgroundColor: '#D32F2F', // Optional: Different color for remove button
+        backgroundColor: '#D32F2F',
     },
     submitButton: {
         marginTop: 20,

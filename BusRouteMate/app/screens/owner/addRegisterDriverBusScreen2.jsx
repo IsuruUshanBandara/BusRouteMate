@@ -33,7 +33,7 @@ const INITIAL_POSITION = {
 const AddRegisterDriverBusScreen2 = () => {
   const { busData } = useLocalSearchParams();
   
-  // State management
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [coordinates, setCoordinates] = useState([]);
@@ -146,7 +146,7 @@ const AddRegisterDriverBusScreen2 = () => {
           routesData.push({
             ...route,
             coordinates: coords,
-            distance: 0, // Will be calculated later
+            distance: 0, 
             duration: 0
           });
         }
@@ -271,7 +271,7 @@ const AddRegisterDriverBusScreen2 = () => {
         const routeRef = doc(db, 'routes', `${plateNum}-${route.busRoute}`);
         await setDoc(routeRef, routeData);
 
-        // Also save under the owner's collection
+        
         // if (ownerPhoneNumber) {
         //   const ownerRouteRef = doc(
         //     db, 
@@ -304,7 +304,7 @@ const AddRegisterDriverBusScreen2 = () => {
         },
         { 
           text: "Save All", 
-          onPress: handleSaveAllRoutes  // Call your existing save function if confirmed
+          onPress: handleSaveAllRoutes  
         }
       ],
       { cancelable: true }

@@ -7,7 +7,7 @@ import { realtimeDb, db, auth } from '../../db/firebaseConfig';
 import { ref, set, serverTimestamp, remove, onValue, off } from 'firebase/database';
 import { collection, query, where, getDocs, doc, updateDoc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import * as geolib from 'geolib'; // Import geolib for distance calculations
+import * as geolib from 'geolib'; 
 
 const DriverRideStartCancel = () => {
   const router = useRouter();
@@ -25,8 +25,8 @@ const DriverRideStartCancel = () => {
   const [destinationOptions, setDestinationOptions] = useState([]);
   const [selectedDestination, setSelectedDestination] = useState('');
   const [isReversed, setIsReversed] = useState(false);
-  const [currentCity, setCurrentCity] = useState(null); // Store the current closest city
-  const [cityUpdateInterval, setCityUpdateInterval] = useState(null); // Store the interval for city updates
+  const [currentCity, setCurrentCity] = useState(null); 
+  const [cityUpdateInterval, setCityUpdateInterval] = useState(null); 
   
   // Check if user is logged in
   useEffect(() => {
@@ -326,8 +326,7 @@ const DriverRideStartCancel = () => {
       console.error('Error getting location from realtime database:', error);
     });
     
-    // Also set an interval as a backup mechanism to check for city updates
-    // This will run every 30 seconds
+   
     const interval = setInterval(() => {
       console.log('Running periodic city update check');
       
@@ -346,12 +345,12 @@ const DriverRideStartCancel = () => {
           updateCurrentCityInFirestore(closestCity);
         }
       }, { onlyOnce: true });
-    }, 30000); // Check every 30 seconds
+    }, 30000); 
     
     setCityUpdateInterval(interval);
   };
 
-  // Improved cleanupCityTracking function with more cleanup
+  
   const cleanupCityTracking = () => {
     // Clear interval
     if (cityUpdateInterval) {
@@ -364,7 +363,6 @@ const DriverRideStartCancel = () => {
     const tripId = selectedRoute ? `${licensePlateNumber}-${selectedRoute}` : null;
     if (tripId) {
       const locationRef = ref(realtimeDb, `/locations/${tripId}`);
-      // Detach all listeners from this reference
       off(locationRef);
       console.log('Realtime database listeners removed');
     }
@@ -532,7 +530,7 @@ const DriverRideStartCancel = () => {
     }
   };
 
-  // Improved cancelRide function
+  
   const cancelRide = async () => {
     try {
       // First stop all tracking services before updating route status
@@ -615,8 +613,7 @@ const DriverRideStartCancel = () => {
       return "";
     }
   
-    // Since the actual array is physically reversed when isReversed is true,
-    // we should always use index 0 for origin and last index for destination
+    
     const originName = routeData.coordinates[0]?.name || '';
     const destName = routeData.coordinates[routeData.coordinates.length - 1]?.name || '';
     

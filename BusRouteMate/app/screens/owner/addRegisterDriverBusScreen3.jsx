@@ -156,7 +156,7 @@ const AddRegisterDriverBusScreen3 = () => {
     };
 
     const validatePhoneNumber = (phoneNum) => {
-        // Basic phone validation - adjust according to your country's format
+        
         return /^\d{10,15}$/.test(phoneNum) ? '' : 'Please enter a valid phone number';
     };
 
@@ -300,7 +300,7 @@ const AddRegisterDriverBusScreen3 = () => {
                 allValid = false;
             }
             
-            // Also check if driver is already registered for this bus
+            
             if (drivers[i].registeredForBus) {
                 Alert.alert("Error", `Driver ${drivers[i].email} is already registered for bus ${parsedPlateNum}`);
                 return;
@@ -325,8 +325,6 @@ const AddRegisterDriverBusScreen3 = () => {
                     return;
                 }
 
-                // Always attempt to sign in first, regardless of isExistingUser flag
-                // This handles the case where the email exists but we didn't detect it
                 try {
                     await signInWithEmailAndPassword(auth, driver.email, driver.password);
                     console.log("Successfully authenticated user");

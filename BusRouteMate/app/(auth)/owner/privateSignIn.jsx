@@ -5,11 +5,9 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { auth } from '../../db/firebaseConfig';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { db } from '../../db/firebaseConfig'; // Make sure to import Firestore
-import { doc, getDoc } from 'firebase/firestore'; // Import Firestore functions
+import { db } from '../../db/firebaseConfig'; 
+import { doc, getDoc } from 'firebase/firestore'; 
 import { LogBox } from 'react-native';
-
-// Suppress Firebase auth error messages that appear from the bottom
 LogBox.ignoreLogs(['firebase/wrong-password', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email', 'auth/too-many-requests','Error (auth/invalid-credential)']);
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -62,7 +60,7 @@ const PrivateBusSignIn = () => {
                 // No owner document found for this user
                 console.log("No owner document found for:", email);
                 setGeneralError(t('You do not have an owner account. Please create an account.'));
-                // Optional: Sign out the user since they're not a valid owner
+                
                 auth.signOut();
             }
             

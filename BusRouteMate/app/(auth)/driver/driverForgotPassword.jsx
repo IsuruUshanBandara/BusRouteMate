@@ -92,10 +92,6 @@ const DriverForgotPassword = () => {
         try {
             // Query the driverDetails collection
             const driverCollectionRef = collection(db, "driverDetails");
-            
-            // We need to find documents where the ID ends with this email
-            // Since we can't query by document ID suffix directly, we'll fetch all documents
-            // and filter them manually (efficient for small collections)
             const querySnapshot = await getDocs(driverCollectionRef);
             
             // Check if any document ID ends with the email pattern

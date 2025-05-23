@@ -193,7 +193,7 @@ const handleSignUp = async () => {
                     
                     console.log("Successfully created document in Firestore");
                     
-                    // Navigate to sign-in page after successfully creating the document
+                    
                     router.push('passenger/passengerSignIn');
                 } catch (signInError) {
                     console.error("Sign-in verification error:", signInError.code, signInError.message);
@@ -236,10 +236,9 @@ const handleSignUp = async () => {
             } catch (createError) {
                 console.error("Create user error:", createError.code, createError.message);
                 
-                // This is where the race condition might be happening
+                
                 if (createError.code === 'auth/email-already-in-use') {
-                    // If we get here, it means our initial check missed it
-                    // Let's double-check the Firestore document now
+                  
                     try {
                         const userDetailsExist = await checkUserDetailsExist(email);
                         
@@ -440,7 +439,7 @@ const handleSignUp = async () => {
                                     />
                                     {errors.confirmPassword ? <HelperText type="error" visible={!!errors.confirmPassword}>{errors.confirmPassword}</HelperText> : null}
 
-                                    {/* Security Question Selection - WITH SCROLLABLE MENU */}
+                                    
                                     <View style={styles.securityQuestionContainer}>
                                         <Menu
                                             visible={menuVisible}
@@ -612,21 +611,21 @@ const styles = StyleSheet.create({
     securityQuestionContainer: {
         width: '100%',
         position: 'relative',
-        zIndex: 100, // Increased z-index to ensure menu appears on top
+        zIndex: 100, 
         marginBottom: 6,
     },
     menu: {
-        zIndex: 200, // Higher z-index than the container
+        zIndex: 200, 
     },
     menuContent: {
         backgroundColor: 'white',
         alignSelf: 'center',
-        maxHeight: 200, // Fixed height for the menu
-        paddingVertical: 0, // Remove default padding to maximize scroll space
+        maxHeight: 200, 
+        paddingVertical: 0, 
     },
     menuScrollView: {
-        maxHeight: 200, // Match the menuContent maxHeight
-        flexGrow: 0, // Prevents ScrollView from expanding beyond maxHeight
+        maxHeight: 200, 
+        flexGrow: 0, 
     },
     menuItem: {
         paddingVertical: 10,

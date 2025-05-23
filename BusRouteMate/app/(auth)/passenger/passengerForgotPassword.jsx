@@ -90,8 +90,6 @@ const PassengerForgotPassword = () => {
     const handleForgotPassword = async () => {
         // Validate fields before submitting
         if (!validateForm()) {
-            // Don't show general form error if field-specific errors are shown
-            return;
             return;
         }
 
@@ -205,7 +203,7 @@ const PassengerForgotPassword = () => {
                                     />
                                     {errors.phoneNumber ? <HelperText type="error" visible={!!errors.phoneNumber}>{errors.phoneNumber}</HelperText> : null}
 
-                                    {/* Security Question Selection */}
+                                    
                                     <View style={styles.securityQuestionContainer}>
                                         <Menu
                                             visible={menuVisible}
@@ -376,17 +374,17 @@ const styles = StyleSheet.create({
     securityQuestionContainer: {
         width: '100%',
         position: 'relative',
-        zIndex: 100, // Increased z-index to ensure menu appears on top
+        zIndex: 100, 
         marginBottom: 6,
     },
     menuContent: {
         backgroundColor: 'white',
-        maxHeight: 200, // Fixed height for the menu
-        paddingVertical: 0, // Remove default padding to maximize scroll space
+        maxHeight: 200, 
+        paddingVertical: 0, 
     },
     menuScrollView: {
-        maxHeight: 200, // Match the menuContent maxHeight
-        flexGrow: 0, // Prevents ScrollView from expanding beyond maxHeight
+        maxHeight: 200, 
+        flexGrow: 0, 
     },
     menuItem: {
         paddingVertical: 10,

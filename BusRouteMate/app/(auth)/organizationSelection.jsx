@@ -36,7 +36,7 @@ const OrganizationCategories = () =>  {
         <Text style={styles.subheading}>Please select your organization type</Text>
       </View>
       <View style={styles.cardsContainer}>
-        {/* SLTB bus sign in card */}
+        
         <Card 
           style={[styles.card, styles.sltbCard]} 
           onPress={() => handleCardPress('sltb')}
@@ -51,7 +51,7 @@ const OrganizationCategories = () =>  {
           </Card.Content>
         </Card>
 
-        {/* Private bus sign in card */}
+        
         <Card 
           style={[styles.card, styles.privateCard]} 
           onPress={() => handleCardPress('private')}
@@ -76,11 +76,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    padding: '3%', // adds padding around the container to avoids the cards edges touching the screen edges
+    padding: '3%', 
   },
   subHeadingContainer: {
-    flex: 0.2, // Pushes the subheading towards the top
-    justifyContent: 'flex-end', // Aligns subheading to the bottom of this container
+    flex: 0.2, 
+    justifyContent: 'flex-end', 
     alignItems: 'center',
   },
   mainTitle: {
@@ -99,8 +99,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   cardsContainer: {
-    flex: 1, // Center the cards
-    justifyContent: 'center', // Vertically centers the content
+    flex: 1, 
+    justifyContent: 'center', 
     width: '100%', // Full width
   },
   card: {
