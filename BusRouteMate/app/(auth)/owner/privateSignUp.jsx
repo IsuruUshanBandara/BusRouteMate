@@ -1,12 +1,14 @@
-import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
-import React, { useState } from 'react';
-import { TextInput, Button, Provider, Avatar } from 'react-native-paper';
+import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView, Platform, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { TextInput, Button, Provider, Avatar, HelperText } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import { createUserWithEmailAndPassword } from 'firebase/auth';  
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, fetchSignInMethodsForEmail } from 'firebase/auth';  
 import { auth, db } from '../../db/firebaseConfig'; 
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
+import { LogBox } from 'react-native';
+LogBox.ignoreLogs(['auth/email-already-in-use']);
 
 const PrivateBusSignUp = () => {
     const router = useRouter();
@@ -17,32 +19,277 @@ const PrivateBusSignUp = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [formContainerWidth, setFormContainerWidth] = useState(Dimensions.get('window').width - 40);
+    const [isLoading, setIsLoading] = useState(false);
     const { t } = useTranslation();
 
-    const handleSignUp = async () => {
-        if (!email || !phoneNumber || !nationalIdentityNum || !password || !confirmPassword) {
-            console.error('All fields are required.');
-            return;
-        }
-        if (password !== confirmPassword) {
-            console.error("Passwords do not match");
-            return;
-        }
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+    // Error states
+    const [errors, setErrors] = useState({
+        email: '',
+        phoneNumber: '',
+        nationalIdentityNum: '',
+        password: '',
+        confirmPassword: '',
+        form: ''
+    });
 
-            await setDoc(doc(db, "ownerDetails", email), {
-                email: email,
-                phoneNumber: phoneNumber,
-                nationalId: nationalIdentityNum,
-                role: "privateOwners",
-                createdAt: new Date()
-            });
-            console.log("User created successfully:", user);
-            router.push('owner/privateSignIn');
-        } catch(error) {
-            console.error("Error creating user:", error.message);
+    // Update width on orientation change
+    useEffect(() => {
+        const updateWidth = () => {
+            // Account for padding (20px on each side)
+            setFormContainerWidth(Dimensions.get('window').width - 40);
+        };
+        
+        const dimensionsListener = Dimensions.addEventListener('change', updateWidth);
+        
+        return () => {
+            dimensionsListener.remove();
+        };
+    }, []);
+
+    // Validation functions
+    const validateEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email) return 'Email is required';
+        if (!emailRegex.test(email)) return 'Please enter a valid email address';
+        return '';
+    };
+
+    const validatePhoneNumber = (phone) => {
+        if (!phone) return 'Phone number is required';
+        
+        // Check if phone starts with 0 or +
+        if (!(phone.startsWith('0') || phone.startsWith('+'))) {
+            return 'Phone number must start with 0 or +';
+        }
+        
+        // Remove non-digit characters except for + at the beginning
+        const digitsOnly = phone.replace(/^\+|\D/g, '$&').replace(/[^\d+]/g, '');
+        
+        // Check length (should be 10 digits excluding the + if present)
+        const digitCount = digitsOnly.startsWith('+') ? digitsOnly.length - 1 : digitsOnly.length;
+        if (digitCount !== 10) {
+            return 'Phone number must be 10 digits long';
+        }
+        
+        return '';
+    };
+
+    const validateNationalId = (id) => {
+        if (!id) return 'National ID is required';
+        return '';
+    };
+
+    const validatePassword = (password) => {
+        if (!password) return 'Password is required';
+        if (password.length < 6) return 'Password must be at least 6 characters';
+        return '';
+    };
+
+    const validateConfirmPassword = (password, confirmPassword) => {
+        if (!confirmPassword) return 'Confirm password is required';
+        if (password !== confirmPassword) return 'Passwords do not match';
+        return '';
+    };
+
+    // Form validation
+    const validateForm = () => {
+        const newErrors = {
+            email: validateEmail(email),
+            phoneNumber: validatePhoneNumber(phoneNumber),
+            nationalIdentityNum: validateNationalId(nationalIdentityNum),
+            password: validatePassword(password),
+            confirmPassword: validateConfirmPassword(password, confirmPassword),
+            form: ''
+        };
+
+        setErrors(newErrors);
+
+        // Check if there are any validation errors
+        return !Object.values(newErrors).some(error => error !== '');
+    };
+
+    // Check if user already exists in Firebase Authentication
+    const checkIfUserExists = async (email) => {
+        try {
+            const methods = await fetchSignInMethodsForEmail(auth, email);
+            return methods.length > 0;
+        } catch (error) {
+            console.error("Error checking if user exists:", error);
+            return false;
+        }
+    };
+
+    // Check if user details exist in Firestore
+    const checkUserDetailsExist = async (email) => {
+        try {
+            const userDocRef = doc(db, "ownerDetails", email);
+            const docSnapshot = await getDoc(userDocRef);
+            return docSnapshot.exists();
+        } catch (error) {
+            console.error("Error checking user details:", error);
+            return false;
+        }
+    };
+
+    const handleSignUp = async () => {
+        // Clear previous form errors
+        setErrors(prev => ({...prev, form: ''}));
+        
+        // Validate all fields before submitting
+        if (!validateForm()) {
+            setErrors(prev => ({...prev, form: 'Please fix the errors before submitting'}));
+            return;
+        }
+
+        setIsLoading(true);
+        
+        try {
+            // First check if user already exists in Firebase Auth
+            const userExists = await checkIfUserExists(email);
+            
+            if (userExists) {
+                console.log("User exists in Auth, checking Firestore document");
+                
+                // Check if user details exist in Firestore
+                const userDetailsExist = await checkUserDetailsExist(email);
+                
+                if (userDetailsExist) {
+                    // Case 1: User exists in both Auth and Firestore
+                    setErrors(prev => ({
+                        ...prev, 
+                        form: 'Account already exists. Please sign in instead.'
+                    }));
+                    setIsLoading(false);
+                    return;
+                } else {
+                    // Case 2: User exists in Auth but not in Firestore
+                    try {
+                        console.log("User exists in Auth but not in Firestore. Attempting to sign in.");
+                        
+                        // Try to sign in first to verify credentials
+                        await signInWithEmailAndPassword(auth, email, password);
+                        console.log("Sign-in successful, creating Firestore document");
+                        
+                        // If sign-in is successful, create the missing Firestore document
+                        const userDocRef = doc(db, "ownerDetails", email);
+                        await setDoc(userDocRef, {
+                            email,
+                            phoneNumber,
+                            nationalId: nationalIdentityNum,
+                            role: "privateOwners",
+                            createdAt: new Date(),
+                        });
+                        
+                        console.log("Successfully created document in Firestore");
+                        
+                        // Navigate to sign-in page after successfully creating the document
+                        router.push('owner/privateSignIn');
+                    } catch (signInError) {
+                        console.error("Sign-in verification error:", signInError.code, signInError.message);
+                        
+                        // If sign-in fails, it means the password is incorrect
+                        if (signInError.code === 'auth/wrong-password' || signInError.code === 'auth/invalid-credential') {
+                            setErrors(prev => ({
+                                ...prev, 
+                                form: 'An account with this email already exists. Please use the correct password or reset it.'
+                            }));
+                        } else {
+                            setErrors(prev => ({
+                                ...prev, 
+                                form: 'Failed to sign in: ' + (signInError.message || 'Unknown error')
+                            }));
+                        }
+                    }
+                }
+            } else {
+                // Case 3: User doesn't exist in Auth - This is a genuine new user
+                console.log("Creating new user in Auth and Firestore");
+                
+                try {
+                    // Create new user in Firebase Auth
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    console.log("Successfully created auth account");
+                    
+                    // Create user document in Firestore
+                    const userDocRef = doc(db, "ownerDetails", email);
+                    await setDoc(userDocRef, {
+                        email,
+                        phoneNumber,
+                        nationalId: nationalIdentityNum,
+                        role: "privateOwners",
+                        createdAt: new Date(),
+                    });
+
+                    console.log("Successfully created owner document in Firestore");
+                    router.push('owner/privateSignIn');
+                } catch (createError) {
+                    console.error("Create user error:", createError.code, createError.message);
+                    
+                    // This is where the race condition might be happening
+                    if (createError.code === 'auth/email-already-in-use') {
+                        // If we get here, it means our initial check missed it
+                        // Let's double-check the Firestore document now
+                        try {
+                            const userDetailsExist = await checkUserDetailsExist(email);
+                            
+                            if (!userDetailsExist) {
+                                // User exists in Auth but not in Firestore - try to sign in
+                                console.log("Email exists in Auth but not in Firestore (detected during creation). Attempting sign in.");
+                                
+                                // Try to sign in with provided credentials
+                                await signInWithEmailAndPassword(auth, email, password);
+                                
+                                // If sign-in works, create the document
+                                const userDocRef = doc(db, "ownerDetails", email);
+                                await setDoc(userDocRef, {
+                                    email,
+                                    phoneNumber,
+                                    nationalId: nationalIdentityNum,
+                                    role: "privateOwners",
+                                    createdAt: new Date(),
+                                });
+                                
+                                console.log("Successfully created document after sign in");
+                                router.push('owner/privateSignIn');
+                                return;
+                            } else {
+                                // Both exist
+                                setErrors(prev => ({
+                                    ...prev, 
+                                    form: 'Account already exists. Please sign in instead.'
+                                }));
+                            }
+                        } catch (secondaryError) {
+                            console.error("Secondary error handling:", secondaryError);
+                            setErrors(prev => ({
+                                ...prev, 
+                                form: 'An account with this email exists. Please try signing in or use a different email.'
+                            }));
+                        }
+                    } else if (createError.code === 'auth/invalid-email') {
+                        setErrors(prev => ({...prev, email: 'Invalid email format'}));
+                    } else if (createError.code === 'auth/weak-password') {
+                        setErrors(prev => ({
+                            ...prev, 
+                            password: 'Password is too weak. Use at least 6 characters.'
+                        }));
+                    } else {
+                        setErrors(prev => ({
+                            ...prev, 
+                            form: createError.message || 'Failed to create account'
+                        }));
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("General sign-up error:", error);
+            setErrors(prev => ({
+                ...prev, 
+                form: 'An unexpected error occurred. Please try again.'
+            }));
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -71,55 +318,85 @@ const PrivateBusSignUp = () => {
                                     <Text style={styles.subHeadingText}>Bus Owner Registration</Text>
                                 </View>
 
-                                <View style={styles.formContainer}>
+                                <View 
+                                    style={styles.formContainer}
+                                    onLayout={(event) => {
+                                        const { width } = event.nativeEvent.layout;
+                                        setFormContainerWidth(width);
+                                    }}
+                                >
                                     <Text style={styles.formTitle}>Create Your Account</Text>
 
+                                    {errors.form ? <Text style={styles.errorText}>{errors.form}</Text> : null}
+
                                     <TextInput 
                                         style={styles.input}
-                                        label={t('email')}
+                                        label={`${t('email')} *`}
                                         value={email}
-                                        onChangeText={text => setEmail(text)}
+                                        onChangeText={text => {
+                                            setEmail(text);
+                                            setErrors(prev => ({...prev, email: validateEmail(text)}));
+                                        }}
                                         mode="outlined"
-                                        outlineColor="#1976d2"
-                                        activeOutlineColor="#1976d2"
+                                        outlineColor={errors.email ? '#ff5252' : '#1976d2'}
+                                        activeOutlineColor={errors.email ? '#ff5252' : '#1976d2'}
                                         theme={{ colors: { primary: '#1976d2' } }}
                                         left={<TextInput.Icon icon="email" color="#1976d2" />}
+                                        error={!!errors.email}
                                     />
+                                    {errors.email ? <HelperText type="error" visible={!!errors.email}>{errors.email}</HelperText> : null}
 
                                     <TextInput 
                                         style={styles.input}
-                                        label="Phone Number"
+                                        label="Phone Number *"
                                         value={phoneNumber}
-                                        onChangeText={text => setPhoneNumber(text)}
+                                        onChangeText={text => {
+                                            setPhoneNumber(text);
+                                            setErrors(prev => ({...prev, phoneNumber: validatePhoneNumber(text)}));
+                                        }}
                                         mode="outlined"
                                         keyboardType="phone-pad"
-                                        outlineColor="#1976d2"
-                                        activeOutlineColor="#1976d2"
+                                        outlineColor={errors.phoneNumber ? '#ff5252' : '#1976d2'}
+                                        activeOutlineColor={errors.phoneNumber ? '#ff5252' : '#1976d2'}
                                         theme={{ colors: { primary: '#1976d2' } }}
                                         left={<TextInput.Icon icon="phone" color="#1976d2" />}
+                                        error={!!errors.phoneNumber}
                                     />
+                                    {errors.phoneNumber ? <HelperText type="error" visible={!!errors.phoneNumber}>{errors.phoneNumber}</HelperText> : null}
 
                                     <TextInput 
                                         style={styles.input}
-                                        label="National Identity Card Number"
+                                        label="National Identity Card Number *"
                                         value={nationalIdentityNum}
-                                        onChangeText={text => setNationalIdentityNum(text)}
+                                        onChangeText={text => {
+                                            setNationalIdentityNum(text);
+                                            setErrors(prev => ({...prev, nationalIdentityNum: validateNationalId(text)}));
+                                        }}
                                         mode="outlined"
-                                        outlineColor="#1976d2"
-                                        activeOutlineColor="#1976d2"
+                                        outlineColor={errors.nationalIdentityNum ? '#ff5252' : '#1976d2'}
+                                        activeOutlineColor={errors.nationalIdentityNum ? '#ff5252' : '#1976d2'}
                                         theme={{ colors: { primary: '#1976d2' } }}
                                         left={<TextInput.Icon icon="card-account-details" color="#1976d2" />}
+                                        error={!!errors.nationalIdentityNum}
                                     />
+                                    {errors.nationalIdentityNum ? <HelperText type="error" visible={!!errors.nationalIdentityNum}>{errors.nationalIdentityNum}</HelperText> : null}
 
                                     <TextInput 
                                         style={styles.input}
-                                        label={t('Password')}
+                                        label={`${t('Password')} *`}
                                         value={password}
-                                        onChangeText={text => setPassword(text)}
+                                        onChangeText={text => {
+                                            setPassword(text);
+                                            setErrors(prev => ({
+                                                ...prev, 
+                                                password: validatePassword(text),
+                                                confirmPassword: validateConfirmPassword(text, confirmPassword)
+                                            }));
+                                        }}
                                         mode="outlined"
                                         secureTextEntry={!showPassword}
-                                        outlineColor="#1976d2"
-                                        activeOutlineColor="#1976d2"
+                                        outlineColor={errors.password ? '#ff5252' : '#1976d2'}
+                                        activeOutlineColor={errors.password ? '#ff5252' : '#1976d2'}
                                         theme={{ colors: { primary: '#1976d2' } }}
                                         left={<TextInput.Icon icon="lock" color="#1976d2" />}
                                         right={
@@ -129,17 +406,22 @@ const PrivateBusSignUp = () => {
                                                 onPress={() => setShowPassword(!showPassword)} 
                                             />
                                         }
+                                        error={!!errors.password}
                                     />
+                                    {errors.password ? <HelperText type="error" visible={!!errors.password}>{errors.password}</HelperText> : null}
 
                                     <TextInput 
                                         style={styles.input}
-                                        label="Confirm Password"
+                                        label="Confirm Password *"
                                         value={confirmPassword}
-                                        onChangeText={text => setConfirmPassword(text)}
+                                        onChangeText={text => {
+                                            setConfirmPassword(text);
+                                            setErrors(prev => ({...prev, confirmPassword: validateConfirmPassword(password, text)}));
+                                        }}
                                         mode="outlined"
                                         secureTextEntry={!showConfirmPassword}
-                                        outlineColor="#1976d2"
-                                        activeOutlineColor="#1976d2"
+                                        outlineColor={errors.confirmPassword ? '#ff5252' : '#1976d2'}
+                                        activeOutlineColor={errors.confirmPassword ? '#ff5252' : '#1976d2'}
                                         theme={{ colors: { primary: '#1976d2' } }}
                                         left={<TextInput.Icon icon="lock-check" color="#1976d2" />}
                                         right={
@@ -149,7 +431,9 @@ const PrivateBusSignUp = () => {
                                                 onPress={() => setShowConfirmPassword(!showConfirmPassword)} 
                                             />
                                         }
+                                        error={!!errors.confirmPassword}
                                     />
+                                    {errors.confirmPassword ? <HelperText type="error" visible={!!errors.confirmPassword}>{errors.confirmPassword}</HelperText> : null}
 
                                     <Button 
                                         mode="contained" 
@@ -158,8 +442,10 @@ const PrivateBusSignUp = () => {
                                         onPress={handleSignUp}
                                         buttonColor="#1976d2"
                                         icon="account-plus"
+                                        loading={isLoading}
+                                        disabled={isLoading}
                                     >
-                                        Register Now
+                                        {isLoading ? 'Processing...' : 'Register Now'}
                                     </Button>
                                     
                                     <Button 
@@ -167,6 +453,7 @@ const PrivateBusSignUp = () => {
                                         onPress={() => router.push('owner/privateSignIn')}
                                         style={styles.backButton}
                                         labelStyle={styles.backButtonText}
+                                        disabled={isLoading}
                                     >
                                         Already have an account? Sign In
                                     </Button>
@@ -242,7 +529,7 @@ const styles = StyleSheet.create({
         color: '#1976d2',
     },
     input: {
-        marginVertical: 8,
+        marginVertical: 6,
         width: '100%',
         backgroundColor: 'white',
     },
@@ -263,5 +550,11 @@ const styles = StyleSheet.create({
     },
     backButtonText: {
         color: '#1976d2',
+    },
+    errorText: {
+        color: '#ff5252',
+        textAlign: 'center',
+        marginBottom: 10,
+        fontWeight: '500',
     },
 });

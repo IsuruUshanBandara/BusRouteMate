@@ -13,6 +13,13 @@ const AddRegisterDriverBusScreen3 = () => {
     const router = useRouter();
     const parsedPlateNum = plateNum ? JSON.parse(plateNum) : '';
     
+    // Store owner credentials
+    const [ownerCredentials, setOwnerCredentials] = useState({
+        email: '',
+        password: '',
+        isVerified: false
+    });
+    
     const [drivers, setDrivers] = useState([{ 
         phoneNum: '', 
         email: '',
@@ -33,7 +40,18 @@ const AddRegisterDriverBusScreen3 = () => {
     
     const [showPassword, setShowPassword] = useState([false]);
     const [showConfirmPassword, setShowConfirmPassword] = useState([false]);
+    const [showOwnerPassword, setShowOwnerPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    
+    // Get owner email when component mounts
+    useEffect(() => {
+        if (auth.currentUser && auth.currentUser.email) {
+            setOwnerCredentials(prev => ({
+                ...prev,
+                email: auth.currentUser.email
+            }));
+        }
+    }, []);
 
     // Initialize password visibility states
     useEffect(() => {
@@ -41,6 +59,71 @@ const AddRegisterDriverBusScreen3 = () => {
         setShowPassword(initialPasswordStates);
         setShowConfirmPassword(initialPasswordStates);
     }, []);
+
+    const verifyOwnerPassword = async () => {
+        setLoading(true);
+        
+        try {
+            // Validate that password is entered
+            if (!ownerCredentials.password) {
+                Alert.alert("Error", "Please enter your password");
+                setLoading(false);
+                return;
+            }
+            
+            // Verify the owner's password by trying to sign in
+            await signInWithEmailAndPassword(auth, ownerCredentials.email, ownerCredentials.password);
+            
+            // If sign-in successful, mark as verified
+            setOwnerCredentials(prev => ({
+                ...prev,
+                isVerified: true
+            }));
+            
+            Alert.alert("Success", "Password verified. You can now register drivers.");
+        } catch (error) {
+            console.error("Password verification error:", error);
+            let errorMessage = "Incorrect password. Please try again.";
+            
+            if (error.code === 'auth/wrong-password') {
+                errorMessage = "Incorrect password. Please try again.";
+            } else if (error.code === 'auth/too-many-requests') {
+                errorMessage = "Too many failed attempts. Please try again later.";
+            } else {
+                errorMessage = "Authentication error. Please try again.";
+            }
+            
+            Alert.alert("Verification Failed", errorMessage);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Add this function to check for duplicate emails
+    const hasDuplicateEmails = (drivers) => {
+        const emails = drivers.map(driver => driver.email.trim().toLowerCase()).filter(email => email !== '');
+        const uniqueEmails = new Set(emails);
+        return emails.length !== uniqueEmails.size;
+    };
+    
+    // Add a function to find duplicate email index pairs
+    const findDuplicateEmailIndices = (drivers) => {
+        const emailIndices = {};
+        const duplicates = [];
+        
+        drivers.forEach((driver, index) => {
+        const email = driver.email.trim().toLowerCase();
+        if (!email) return;
+        
+        if (emailIndices[email] !== undefined) {
+            duplicates.push({ first: emailIndices[email], second: index });
+        } else {
+            emailIndices[email] = index;
+        }
+        });
+        
+        return duplicates;
+    };
 
     const addDriver = () => {
         setDrivers([...drivers, { 
@@ -73,7 +156,7 @@ const AddRegisterDriverBusScreen3 = () => {
     };
 
     const validatePhoneNumber = (phoneNum) => {
-        // Basic phone validation - adjust according to your country's format
+        
         return /^\d{10,15}$/.test(phoneNum) ? '' : 'Please enter a valid phone number';
     };
 
@@ -149,12 +232,23 @@ const AddRegisterDriverBusScreen3 = () => {
             setDrivers(updatedDrivers);
             return;
         }
-
+    
+        // Check for duplicate emails
+        const updatedDrivers = [...drivers];
+        const duplicates = findDuplicateEmailIndices(updatedDrivers);
+        
+        // If this email is part of a duplicate pair
+        const isDuplicate = duplicates.some(pair => pair.first === index || pair.second === index);
+        if (isDuplicate) {
+            updatedDrivers[index].errors.email = 'This email is already used for another driver';
+            setDrivers(updatedDrivers);
+            return;
+        }
+    
         try {
             setLoading(true);
             const { emailExists, registeredForBus, message } = await checkExistingUser(email);
             
-            const updatedDrivers = [...drivers];
             updatedDrivers[index].isExistingUser = emailExists;
             updatedDrivers[index].registeredForBus = registeredForBus;
             updatedDrivers[index].emailChecked = true;
@@ -180,6 +274,23 @@ const AddRegisterDriverBusScreen3 = () => {
     };
 
     const handleSubmit = async () => {
+
+         // Check for duplicate emails first
+        if (hasDuplicateEmails(drivers)) {
+            // Find and mark all duplicates
+            const updatedDrivers = [...drivers];
+            const duplicates = findDuplicateEmailIndices(updatedDrivers);
+            
+            duplicates.forEach(pair => {
+                updatedDrivers[pair.first].errors.email = 'Duplicate email address';
+                updatedDrivers[pair.second].errors.email = 'Duplicate email address';
+            });
+            
+            setDrivers(updatedDrivers);
+            Alert.alert("Validation Error", "Please ensure each driver has a unique email address");
+            return;
+        }
+
         // Validate all inputs first
         let allValid = true;
         
@@ -189,7 +300,7 @@ const AddRegisterDriverBusScreen3 = () => {
                 allValid = false;
             }
             
-            // Also check if driver is already registered for this bus
+            
             if (drivers[i].registeredForBus) {
                 Alert.alert("Error", `Driver ${drivers[i].email} is already registered for bus ${parsedPlateNum}`);
                 return;
@@ -214,8 +325,6 @@ const AddRegisterDriverBusScreen3 = () => {
                     return;
                 }
 
-                // Always attempt to sign in first, regardless of isExistingUser flag
-                // This handles the case where the email exists but we didn't detect it
                 try {
                     await signInWithEmailAndPassword(auth, driver.email, driver.password);
                     console.log("Successfully authenticated user");
@@ -225,6 +334,9 @@ const AddRegisterDriverBusScreen3 = () => {
                         // If we know it's an existing user but sign-in failed, it's a password error
                         Alert.alert("Authentication Error", "Incorrect password for existing user. Please enter the correct password.");
                         setLoading(false);
+                        
+                        // Sign the owner back in
+                        await signInWithEmailAndPassword(auth, ownerCredentials.email, ownerCredentials.password);
                         return;
                     } else {
                         // If we thought it was a new user and sign-in failed, try to create the account
@@ -247,6 +359,9 @@ const AddRegisterDriverBusScreen3 = () => {
                             
                             Alert.alert("Registration Error", errorMessage);
                             setLoading(false);
+                            
+                            // Sign the owner back in
+                            await signInWithEmailAndPassword(auth, ownerCredentials.email, ownerCredentials.password);
                             return;
                         }
                     }
@@ -263,6 +378,9 @@ const AddRegisterDriverBusScreen3 = () => {
                 
                 console.log(`Successfully registered driver ${driver.email} for bus ${parsedPlateNum}`);
             }
+            
+            // After all drivers are registered, sign the owner back in
+            await signInWithEmailAndPassword(auth, ownerCredentials.email, ownerCredentials.password);
 
             Alert.alert(
                 "Success", 
@@ -280,6 +398,13 @@ const AddRegisterDriverBusScreen3 = () => {
         } catch (error) {
             console.error("Registration error:", error);
             Alert.alert("Error", "An error occurred during registration. Please try again.");
+            
+            // Even if registration fails, try to sign the owner back in
+            try {
+                await signInWithEmailAndPassword(auth, ownerCredentials.email, ownerCredentials.password);
+            } catch (signInError) {
+                console.error("Failed to restore owner session:", signInError);
+            }
         } finally {
             setLoading(false);
         }
@@ -299,7 +424,18 @@ const AddRegisterDriverBusScreen3 = () => {
             updatedDrivers[index].isExistingUser = false;
             updatedDrivers[index].registeredForBus = false;
             updatedDrivers[index].emailChecked = false;
+
+        // Clear duplicate email errors on other drivers with the same email
+        if (updatedDrivers[index].email !== value) {
+            updatedDrivers.forEach((driver, i) => {
+                if (i !== index && 
+                    driver.email.trim().toLowerCase() === updatedDrivers[index].email.trim().toLowerCase() &&
+                    driver.errors.email === 'Duplicate email address') {
+                    driver.errors.email = '';
+                }
+            });
         }
+    }
         
         setDrivers(updatedDrivers);
     };
@@ -316,8 +452,77 @@ const AddRegisterDriverBusScreen3 = () => {
                             <Text style={styles.subHeading}>Register Driver & Conductor for Bus {parsedPlateNum}</Text>
                         </View>
 
+                        {/* Owner Password Verification Section */}
+                        <View style={styles.ownerVerificationContainer}>
+                            <Text style={styles.ownerVerificationTitle}>
+                                Verify Owner Account
+                            </Text>
+                            <Text style={styles.ownerVerificationSubtitle}>
+                                Before registering drivers, please verify your owner account by entering your password.
+                            </Text>
+                            
+                            <View style={styles.ownerEmailContainer}>
+                                <Text style={styles.ownerEmailLabel}>Owner Email:</Text>
+                                <Text style={styles.ownerEmail}>{ownerCredentials.email}</Text>
+                            </View>
+                            
+                            <TextInput
+                                style={styles.input}
+                                label="Owner Password*"
+                                secureTextEntry={!showOwnerPassword}
+                                right={
+                                    <TextInput.Icon
+                                        icon={showOwnerPassword ? "eye-off" : "eye"}
+                                        onPress={() => setShowOwnerPassword(!showOwnerPassword)}
+                                    />
+                                }
+                                value={ownerCredentials.password}
+                                onChangeText={text => setOwnerCredentials(prev => ({...prev, password: text}))}
+                                mode="outlined"
+                                disabled={ownerCredentials.isVerified || loading}
+                            />
+                            
+                            {!ownerCredentials.isVerified && (
+                                <Button
+                                    mode="contained"
+                                    style={styles.verifyButton}
+                                    onPress={verifyOwnerPassword}
+                                    loading={loading}
+                                    disabled={loading || !ownerCredentials.password}
+                                    icon="account-check"
+                                >
+                                    Verify Password
+                                </Button>
+                            )}
+                            
+                            {ownerCredentials.isVerified && (
+                                <View style={styles.verifiedContainer}>
+                                    <IconButton
+                                        icon="check-circle"
+                                        color="#4CAF50"
+                                        size={24}
+                                    />
+                                    <Text style={styles.verifiedText}>Owner Verified</Text>
+                                </View>
+                            )}
+                        </View>
+
+                        {/* Driver Registration Section - Disabled until owner is verified */}
+                        <Text style={[
+                            styles.sectionTitle, 
+                            !ownerCredentials.isVerified && styles.disabledText
+                        ]}>
+                            Driver Registration
+                        </Text>
+                        
                         {drivers.map((driver, index) => (
-                            <View key={index} style={styles.driverContainer}>
+                            <View 
+                                key={index} 
+                                style={[
+                                    styles.driverContainer,
+                                    !ownerCredentials.isVerified && styles.disabledContainer
+                                ]}
+                            >
                                 <Text style={styles.driverTitle}>Driver {index + 1}</Text>
                                 
                                 <TextInput
@@ -328,6 +533,7 @@ const AddRegisterDriverBusScreen3 = () => {
                                     onChangeText={text => updateDriverField(index, 'phoneNum', text)}
                                     mode="outlined"
                                     error={!!driver.errors.phoneNum}
+                                    disabled={!ownerCredentials.isVerified || loading}
                                 />
                                 {!!driver.errors.phoneNum && (
                                     <HelperText type="error" visible={!!driver.errors.phoneNum}>
@@ -343,9 +549,10 @@ const AddRegisterDriverBusScreen3 = () => {
                                         keyboardType='email-address'
                                         autoCapitalize='none'
                                         onChangeText={text => updateDriverField(index, 'email', text)}
-                                        onBlur={() => handleEmailBlur(index)}
+                                        onBlur={() => ownerCredentials.isVerified && handleEmailBlur(index)}
                                         mode="outlined"
                                         error={!!driver.errors.email}
+                                        disabled={!ownerCredentials.isVerified || loading}
                                     />
                                     {driver.emailChecked && driver.isExistingUser && (
                                         <Chip 
@@ -382,12 +589,14 @@ const AddRegisterDriverBusScreen3 = () => {
                                                 updatedShowPassword[index] = !updatedShowPassword[index];
                                                 setShowPassword(updatedShowPassword);
                                             }}
+                                            disabled={!ownerCredentials.isVerified}
                                         />
                                     }
                                     value={driver.password}
                                     onChangeText={text => updateDriverField(index, 'password', text)}
                                     mode="outlined"
                                     error={!!driver.errors.password}
+                                    disabled={!ownerCredentials.isVerified || loading}
                                 />
                                 {!!driver.errors.password && (
                                     <HelperText type="error" visible={!!driver.errors.password}>
@@ -409,12 +618,14 @@ const AddRegisterDriverBusScreen3 = () => {
                                                         updatedShowConfirmPassword[index] = !updatedShowConfirmPassword[index];
                                                         setShowConfirmPassword(updatedShowConfirmPassword);
                                                     }}
+                                                    disabled={!ownerCredentials.isVerified}
                                                 />
                                             }
                                             value={driver.confirmPassword}
                                             onChangeText={text => updateDriverField(index, 'confirmPassword', text)}
                                             mode="outlined"
                                             error={!!driver.errors.confirmPassword}
+                                            disabled={!ownerCredentials.isVerified || loading}
                                         />
                                         {!!driver.errors.confirmPassword && (
                                             <HelperText type="error" visible={!!driver.errors.confirmPassword}>
@@ -432,6 +643,7 @@ const AddRegisterDriverBusScreen3 = () => {
                                     onChangeText={text => updateDriverField(index, 'conductorPhone', text)}
                                     mode="outlined"
                                     error={!!driver.errors.conductorPhone}
+                                    disabled={!ownerCredentials.isVerified || loading}
                                 />
                                 {!!driver.errors.conductorPhone && (
                                     <HelperText type="error" visible={!!driver.errors.conductorPhone}>
@@ -448,7 +660,7 @@ const AddRegisterDriverBusScreen3 = () => {
                                 mode="contained"
                                 style={[styles.actionButton, styles.addButton]}
                                 onPress={addDriver}
-                                disabled={loading}
+                                disabled={!ownerCredentials.isVerified || loading}
                                 icon="account-plus"
                             >
                                 Add Driver
@@ -458,7 +670,7 @@ const AddRegisterDriverBusScreen3 = () => {
                                 mode="contained"
                                 style={[styles.actionButton, styles.removeButton]}
                                 onPress={removeLastDriver}
-                                disabled={drivers.length === 1 || loading}
+                                disabled={drivers.length === 1 || !ownerCredentials.isVerified || loading}
                                 icon="account-remove"
                             >
                                 Remove
@@ -470,7 +682,7 @@ const AddRegisterDriverBusScreen3 = () => {
                             style={styles.submitButton}
                             onPress={handleSubmit}
                             loading={loading}
-                            disabled={loading}
+                            disabled={!ownerCredentials.isVerified || loading}
                             icon="content-save"
                         >
                             {loading ? 'Processing...' : 'Register Drivers'}
@@ -507,6 +719,69 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         color: '#333',
     },
+    ownerVerificationContainer: {
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        padding: 16,
+        marginBottom: 20,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+    },
+    ownerVerificationTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 8,
+        color: '#333',
+    },
+    ownerVerificationSubtitle: {
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 12,
+    },
+    ownerEmailContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    ownerEmailLabel: {
+        fontSize: 14,
+        color: '#666',
+        fontWeight: '500',
+        marginRight: 8,
+    },
+    ownerEmail: {
+        fontSize: 14,
+        color: '#333',
+        fontWeight: 'bold',
+    },
+    verifyButton: {
+        marginTop: 8,
+        marginBottom: 4,
+        backgroundColor: '#1976D2',
+    },
+    verifiedContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    verifiedText: {
+        color: '#4CAF50',
+        fontWeight: '600',
+        fontSize: 16,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        marginBottom: 12,
+        marginTop: 12,
+        color: '#333',
+    },
+    disabledText: {
+        color: '#9E9E9E',
+    },
     driverContainer: {
         backgroundColor: '#fff',
         borderRadius: 8,
@@ -517,6 +792,9 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.2,
         shadowRadius: 2,
+    },
+    disabledContainer: {
+        opacity: 0.7,
     },
     driverTitle: {
         fontSize: 18,

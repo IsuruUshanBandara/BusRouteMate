@@ -34,9 +34,14 @@ const ViewFeedbackScreen1 = () => {
     return unsubscribe;
   }, []);
 
-  const fetchFeedbackData = async (lastDoc = null) => {
+  const fetchFeedbackData = async (lastDoc = null, allFeedbackBusPlates = null) => {
     try {
-      setLoading(true);
+      if (lastDoc) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+      
       const user = auth.currentUser;
       if (!user) {
         router.push('screens/owner/privateSignIn');
@@ -52,13 +57,31 @@ const ViewFeedbackScreen1 = () => {
       if (!ownerSnap.exists()) {
         console.error('Owner details not found');
         setLoading(false);
+        setLoadingMore(false);
         return;
       }
   
       const { role, phoneNumber } = ownerSnap.data();
       const ownerCollection = role === 'privateOwners' ? 'privateOwners' : 'sltbAuthority';
   
-      // Step 2: Get bus plate numbers
+      // Step 2: Get feedback bus plates first (only once)
+      let feedbackBusPlates = allFeedbackBusPlates;
+      if (!feedbackBusPlates) {
+        console.log('Fetching all feedback documents first');
+        const feedbackRef = collection(db, 'passengerFeedback');
+        const feedbackSnap = await getDocs(feedbackRef);
+        
+        // Extract unique bus plate numbers from feedback
+        feedbackBusPlates = new Set();
+        feedbackSnap.docs.forEach(doc => {
+          const platePart = doc.id.split('-')[0];
+          feedbackBusPlates.add(platePart);
+        });
+        
+        console.log('Unique bus plates in feedback:', Array.from(feedbackBusPlates));
+      }
+  
+      // Step 3: Get bus plate numbers
       const busesRef = collection(db, ownerCollection, phoneNumber, 'buses');
       
       let busesSnap;
@@ -98,17 +121,23 @@ const ViewFeedbackScreen1 = () => {
         setAllBusPlates(prev => [...prev, ...busPlateNumbers]);
       }
       
-      // Step 3: Get feedback documents
-      const feedbackRef = collection(db, 'passengerFeedback');
-      const feedbackSnap = await getDocs(feedbackRef);
-      
-      // Step 4: Extract unique bus plate numbers from feedback
-      const feedbackBusPlates = new Set(
-        feedbackSnap.docs.map(doc => doc.id.split('-')[0]) // Extract bus plate number
+      // Step 4: Filter feedback for relevant buses
+      const filteredBusPlates = busPlateNumbers.filter(busPlate => 
+        Array.from(feedbackBusPlates).some(feedbackPlate => 
+          feedbackPlate.toLowerCase() === busPlate.toLowerCase()
+        )
       );
       
-      // Step 5: Filter feedback for relevant buses
-      const filteredBusPlates = busPlateNumbers.filter(busPlate => feedbackBusPlates.has(busPlate));
+      console.log('Buses with feedback in this batch:', filteredBusPlates);
+      
+      // Step 5: If no matches found and there are more buses, recursively fetch next batch
+      if (filteredBusPlates.length === 0 && busesSnap.docs.length === ITEMS_PER_PAGE) {
+        console.log('No matching buses in this batch, fetching next batch');
+        return fetchFeedbackData(
+          busesSnap.docs[busesSnap.docs.length - 1], 
+          feedbackBusPlates
+        );
+      }
       
       // Set last document for pagination
       if (busesSnap.docs.length === ITEMS_PER_PAGE) {
@@ -118,18 +147,54 @@ const ViewFeedbackScreen1 = () => {
         setHasMoreBuses(false);
       }
       
+      // Fetch all feedback to count per bus
+      const feedbackRef = collection(db, 'passengerFeedback');
+      const feedbackSnap = await getDocs(feedbackRef);
+      
       // Prepare bus data with additional information
       const busData = filteredBusPlates.map(plate => ({
         plateNumber: plate,
         feedbackCount: Array.from(feedbackSnap.docs)
-          .filter(doc => doc.id.startsWith(plate + '-'))
+          .filter(doc => doc.id.toLowerCase().startsWith(plate.toLowerCase() + '-'))
           .length
       }));
       
+      console.log('Final bus data to display:', busData);
+      
+      // FIXED THIS PART - Always append data when lastDoc is provided
       if (lastDoc) {
-        setFeedbackBuses(prev => [...prev, ...busData]);
-        setFilteredBuses(prev => [...prev, ...busData]);
+        // We're loading more, so append to existing buses
+        setFeedbackBuses(prev => {
+          const newBuses = [...prev];
+          
+          // Add new buses that aren't already in the list
+          busData.forEach(newBus => {
+            if (!newBuses.some(bus => bus.plateNumber === newBus.plateNumber)) {
+              newBuses.push(newBus);
+            }
+          });
+          
+          return newBuses;
+        });
+        
+        setFilteredBuses(prev => {
+          // Only update filtered buses if we're not searching
+          if (searchQuery.trim() === '') {
+            const newBuses = [...prev];
+            
+            // Add new buses that aren't already in the list
+            busData.forEach(newBus => {
+              if (!newBuses.some(bus => bus.plateNumber === newBus.plateNumber)) {
+                newBuses.push(newBus);
+              }
+            });
+            
+            return newBuses;
+          }
+          return prev; // Keep current filtered results if searching
+        });
       } else {
+        // First load, just set the data
         setFeedbackBuses(busData);
         setFilteredBuses(busData);
       }

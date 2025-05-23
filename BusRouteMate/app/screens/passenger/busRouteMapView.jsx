@@ -226,7 +226,7 @@ const BusRouteMapView = () => {
 
       <View style={styles.infoContainer}>
         <Text style={styles.routeText}>
-          {busData.routeName || `${busData.origin} - ${busData.destination}`}
+          {busData.busRoute || `${busData.origin} - ${busData.destination}`}
         </Text>
         <Text style={styles.busText}>
           Bus: {licencePlate} | Route Number: {busData.routeNum}
@@ -238,12 +238,12 @@ const BusRouteMapView = () => {
         </View>
         
         <View style={styles.statsContainer}>
-          <Text style={styles.statText}>
+          {/* <Text style={styles.statText}>
             Distance: {(busData.distance / 1000).toFixed(1)} km
           </Text>
           <Text style={styles.statText}>
             Duration: {Math.ceil(busData.duration / 60)} mins
-          </Text>
+          </Text> */}
           <Text style={styles.updatedText}>
             Last updated: {new Date(busData.lastUpdated).toLocaleTimeString()}
           </Text>

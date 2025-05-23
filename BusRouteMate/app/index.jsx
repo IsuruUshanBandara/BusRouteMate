@@ -50,7 +50,7 @@ const UserCategories = () => {
             <Text style={styles.title}>{t('driver')}</Text>
             <View style={styles.titleUnderline} />
           </View>
-          <Text style={styles.subtitle}>Sign in/Sign up</Text>
+          <Text style={styles.subtitle}>Sign in</Text>
         </Card.Content>
       </Card>
 

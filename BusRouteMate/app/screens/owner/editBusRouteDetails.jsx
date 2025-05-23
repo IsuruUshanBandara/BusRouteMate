@@ -13,10 +13,11 @@ import {
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, IconButton, Text } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { doc, getDoc, updateDoc, setDoc,deleteDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, deleteDoc, writeBatch, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../../db/firebaseConfig';
 import { GOOGLE_MAPS_API_KEY } from '@env';
 import { onAuthStateChanged } from 'firebase/auth';
+
 const EditBusRouteDetails = () => {
   const router = useRouter();
   const { plateNumber, routeDocId } = useLocalSearchParams();
@@ -38,42 +39,32 @@ const EditBusRouteDetails = () => {
   const timeoutRef = useRef(null);
   const [formElements, setFormElements] = useState([]);
   const [ownerPhoneNumber, setOwnerPhoneNumber] = useState('');
-  useEffect(()=>{
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if(user){
-        // setLoading(false);
-        // console.log('User is signed in');
-        
-        try {
-            // Fetch owner details from Firestore using the email
-            const email = user.email;
-            const ownerDocRef = doc(db, 'ownerDetails', email);
-            const ownerDoc = await getDoc(ownerDocRef);
-  
-            if (ownerDoc.exists()) {
-              setOwnerPhoneNumber(ownerDoc.data().phoneNumber);
-            } else {
-              console.error('Owner document not found in Firestore.');
-            }
-          } catch (error) {
-            console.error('Error fetching owner details:', error);
-          }
-          // setLoading(false);
-        } else {
-          router.push('screens/owner/privateSignIn');
-          setIsLoading(false);
-        }
-      });
-    return unsubscribe;
-  },[]);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // if(loading){
-  //   return (
-  //     <View style={styles.loadingContainer}>
-  //       <ActivityIndicator size="large" color="#6200ee" />
-  //     </View>
-  //   );
-  // }
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const email = user.email;
+          const ownerDocRef = doc(db, 'ownerDetails', email);
+          const ownerDoc = await getDoc(ownerDocRef);
+
+          if (ownerDoc.exists()) {
+            setOwnerPhoneNumber(ownerDoc.data().phoneNumber);
+          } else {
+            console.error('Owner document not found in Firestore.');
+          }
+        } catch (error) {
+          console.error('Error fetching owner details:', error);
+        }
+      } else {
+        router.push('screens/owner/privateSignIn');
+        setIsLoading(false);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
   useEffect(() => {
     const fetchRouteDetails = async () => {
       try {
@@ -83,22 +74,27 @@ const EditBusRouteDetails = () => {
         
         if (routeDocSnap.exists()) {
           const data = routeDocSnap.data();
+          
+          // Extract origin, passing cities, and destination from coordinates array
+          const coordinates = data.coordinates || [];
+          const origin = coordinates[0] || { name: '', latitude: 0, longitude: 0 };
+          const destination = coordinates[coordinates.length - 1] || { name: '', latitude: 0, longitude: 0 };
+          const passingCities = coordinates.length > 2 ? 
+            coordinates.slice(1, -1).map(city => ({ name: city.name || '', placeId: '' })) : [];
+          
           const parsedData = {
             routeName: data.routeName || data.busRoute || '',
             routeNum: data.routeNum || '',
             origin: {
-              name: data.origin?.name || '',
+              name: origin.name || data.origin?.name || '',
               placeId: data.origin?.placeId || ''
             },
             destination: {
-              name: data.destination?.name || '',
+              name: destination.name || data.destination?.name || '',
               placeId: data.destination?.placeId || ''
             },
-            passingCities: data.passingCities?.map(city => ({
-              name: city.name || '',
-              placeId: city.placeId || ''
-            })) || [],
-            coordinates: data.coordinates || [],
+            passingCities: passingCities,
+            coordinates: coordinates,
             createdAt: data.createdAt || new Date().toISOString(),
             ownerPhoneNumber: data.ownerPhoneNumber || '',
             licencePlateNum: data.licencePlateNum || plateNumber
@@ -125,19 +121,18 @@ const EditBusRouteDetails = () => {
     inputRefs.current = {};
   }, []);
 
-  // Prepare form elements for FlatList
   useEffect(() => {
     if (isLoading) return;
     
     const elements = [];
     
-    // Add header
+    // Add header with delete button
     elements.push({
       type: 'header',
       id: 'header',
     });
     
-    // Add bus info
+    // Add bus info with full route name display
     elements.push({
       type: 'busInfo',
       id: 'busInfo',
@@ -149,7 +144,7 @@ const EditBusRouteDetails = () => {
       id: 'routeInfo',
     });
     
-    // Add origin
+    // Add origin (required)
     elements.push({
       type: 'origin',
       id: 'origin',
@@ -179,16 +174,11 @@ const EditBusRouteDetails = () => {
       });
     }
     
-    // Add destination - add this ONLY when no field is being edited
-    if (editingField === null || 
-        (editingField !== 'origin' && 
-         editingField !== 'destination' && 
-         !editingField?.startsWith('city-'))) {
-      elements.push({
-        type: 'destination',
-        id: 'destination',
-      });
-    }
+    // Add destination (required)
+    elements.push({
+      type: 'destination',
+      id: 'destination',
+    });
     
     // Add save buttons
     elements.push({
@@ -199,8 +189,35 @@ const EditBusRouteDetails = () => {
     setFormElements(elements);
   }, [routeData, isLoading, editingField]);
 
-  // Function to get coordinates for a place using Google Maps API
+  const checkRouteExists = async (routeName) => {
+    try {
+      const routesRef = collection(db, 'routes');
+      const q = query(routesRef, where('routeName', '==', routeName));
+      const querySnapshot = await getDocs(q);
+      return !querySnapshot.empty;
+    } catch (error) {
+      console.error('Error checking route existence:', error);
+      return false;
+    }
+  };
+
+  const handleDeleteRoute = async () => {
+    try {
+      setIsLoading(true);
+      await deleteDoc(doc(db, 'routes', routeDocId));
+      Alert.alert('Success', 'Route deleted successfully');
+      router.back();
+    } catch (error) {
+      console.error('Error deleting route:', error);
+      Alert.alert('Error', 'Failed to delete route');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const getCoordinatesForPlace = async (placeName) => {
+    if (!placeName) return null;
+    
     try {
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(placeName)}&key=${GOOGLE_MAPS_API_KEY}`
@@ -222,65 +239,52 @@ const EditBusRouteDetails = () => {
   };
 
   const handleUpdateRoute = async () => {
+    if (!routeData.origin.name || !routeData.destination.name) {
+      Alert.alert('Error', 'Origin and destination cannot be blank');
+      return;
+    }
+
     try {
-      console.log("--- BEFORE UPDATE ---");
-      console.log("Original Route Num:", originalRouteData.routeNum); 
-      console.log("New Route Num:", routeData.routeNum);
       setIsLoading(true);
       
+      // Check if route already exists (only if name changed)
+      if (originalRouteData.routeName !== routeData.routeName) {
+        const routeExists = await checkRouteExists(routeData.routeName);
+        if (routeExists) {
+          Alert.alert('Error', 'A route with this name already exists');
+          setIsLoading(false);
+          return;
+        }
+      }
+
       // Prepare coordinates array
       const coordinates = [];
       
       // Add origin coordinates
       const originCoords = await getCoordinatesForPlace(routeData.origin.name);
-      if (originCoords) {
-        coordinates.push({
-          name: routeData.origin.name,
-          latitude: originCoords.latitude,
-          longitude: originCoords.longitude
-        });
-      } else {
-        coordinates.push({
-          name: routeData.origin.name,
-          latitude: 0,
-          longitude: 0
-        });
-      }
+      coordinates.push({
+        name: routeData.origin.name,
+        latitude: originCoords?.latitude || 0,
+        longitude: originCoords?.longitude || 0
+      });
       
       // Add passing cities coordinates
       for (const city of routeData.passingCities) {
         const cityCoords = await getCoordinatesForPlace(city.name);
-        if (cityCoords) {
-          coordinates.push({
-            name: city.name,
-            latitude: cityCoords.latitude,
-            longitude: cityCoords.longitude
-          });
-        } else {
-          coordinates.push({
-            name: city.name,
-            latitude: 0,
-            longitude: 0
-          });
-        }
+        coordinates.push({
+          name: city.name,
+          latitude: cityCoords?.latitude || 0,
+          longitude: cityCoords?.longitude || 0
+        });
       }
       
       // Add destination coordinates
       const destCoords = await getCoordinatesForPlace(routeData.destination.name);
-      if (destCoords) {
-        coordinates.push({
-          name: routeData.destination.name,
-          latitude: destCoords.latitude,
-          longitude: destCoords.longitude
-        });
-      } else {
-        coordinates.push({
-          name: routeData.destination.name,
-          latitude: 0,
-          longitude: 0
-        });
-      }
-      
+      coordinates.push({
+        name: routeData.destination.name,
+        latitude: destCoords?.latitude || 0,
+        longitude: destCoords?.longitude || 0
+      });
       
       const updateData = {
         routeName: routeData.routeName,
@@ -288,77 +292,42 @@ const EditBusRouteDetails = () => {
         routeNum: routeData.routeNum,
         origin: {
           name: routeData.origin.name,
-          // placeId: routeData.origin.placeId
+          placeId: routeData.origin.placeId
         },
         destination: {
           name: routeData.destination.name,
-          // placeId: routeData.destination.placeId
+          placeId: routeData.destination.placeId
         },
-        passingCities: routeData.passingCities
-          .filter(city => city.name)
-          .map(city => ({
-            name: city.name,
-            // placeId: city.placeId
-          })),
+        passingCities: routeData.passingCities.map(city => ({
+          name: city.name,
+          placeId: city.placeId
+        })),
         coordinates: coordinates,
         updatedAt: new Date().toISOString(),
         ownerPhoneNumber: ownerPhoneNumber,
         licencePlateNum: routeData.licencePlateNum,
-        createdAt: routeData.createdAt
+        createdAt: routeData.createdAt || new Date().toISOString()
       };
-      console.log("Final update payload:", updateData); // Verify this shows correct routeNum
 
       // Check if route name has changed (which requires new document ID)
       const nameChanged = originalRouteData.routeName !== routeData.routeName;
       
-      // Check if only route number or other fields changed (which can use same document)
-      // const routeNumChanged = originalRouteData.routeNum !== routeData.routeNum;
-
       if (nameChanged) {
         const newDocId = `${plateNumber}-${routeData.routeName.replace(/\s+/g, '-')}`;
-        console.log(`Name changed. Creating new document ${newDocId}`);
-  
-        // 3. Transaction for atomic delete+create
+        
+        // Transaction for atomic delete+create
         const batch = writeBatch(db);
-        
-        // Delete old document
         batch.delete(doc(db, 'routes', routeDocId));
-        
-        // Create new document
         batch.set(doc(db, 'routes', newDocId), updateData);
-        
         await batch.commit();
         
-        console.log("Document replaced successfully");
-        
-        // 4. Navigate with new document ID
         router.push({
           pathname: 'screens/owner/editBusRouteMap',
           params: {
             plateNumber,
             routeDocId: newDocId,
-            routeName: routeData.routeName,
-            busRoute: routeData.routeName,
-            routeNum: routeData.routeNum,
-            origin: {
-              name: routeData.origin.name,
-              // placeId: routeData.origin.placeId
-            },
-            destination: {
-              name: routeData.destination.name,
-              // placeId: routeData.destination.placeId
-            },
-            passingCities: routeData.passingCities
-              .filter(city => city.name)
-              .map(city => ({
-                name: city.name,
-                // placeId: city.placeId
-              })),
-            coordinates: coordinates,
-            updatedAt: new Date().toISOString(),
-            ownerPhoneNumber: ownerPhoneNumber,
-            licencePlateNum: routeData.licencePlateNum,
-            createdAt: routeData.createdAt
+            ...updateData,
+            coordinates: JSON.stringify(coordinates)
           }
         });
       } else {
@@ -370,13 +339,7 @@ const EditBusRouteDetails = () => {
           params: {
             plateNumber,
             routeDocId,
-            routeName: routeData.routeName,
-            routeNum: routeData.routeNum,
-            origin: routeData.origin.name,
-            originPlaceId: routeData.origin.placeId,
-            destination: routeData.destination.name,
-            destinationPlaceId: routeData.destination.placeId,
-            passingCities: JSON.stringify(routeData.passingCities),
+            ...updateData,
             coordinates: JSON.stringify(coordinates)
           }
         });
@@ -390,27 +353,37 @@ const EditBusRouteDetails = () => {
   };
 
   const handleAddPassingCity = () => {
+    const newCity = { name: '', placeId: '' };
     setRouteData(prev => ({
       ...prev,
-      passingCities: [...prev.passingCities, { name: '', placeId: '' }]
+      passingCities: [...prev.passingCities, newCity]
     }));
-    // Set the new city as the editing field
+    
+    // Set focus on the new city input after a small delay
     setTimeout(() => {
-      setEditingField(`city-${routeData.passingCities.length}`);
+      const newIndex = routeData.passingCities.length;
+      setEditingField(`city-${newIndex}`);
       setFieldInputText('');
+      if (inputRefs.current[`city-${newIndex}`]) {
+        inputRefs.current[`city-${newIndex}`].focus();
+      }
     }, 100);
   };
 
   const handleRemovePassingCity = (index) => {
+    const updatedCities = [...routeData.passingCities];
+    updatedCities.splice(index, 1);
+    
+    setRouteData(prev => ({
+      ...prev,
+      passingCities: updatedCities
+    }));
+    
+    // Clear editing state if we're removing the currently edited city
     if (editingField === `city-${index}`) {
       setEditingField(null);
       setSuggestions([]);
     }
-    
-    setRouteData(prev => ({
-      ...prev,
-      passingCities: prev.passingCities.filter((_, i) => i !== index)
-    }));
   };
 
   const handleStartEditField = (fieldId, initialValue = '') => {
@@ -427,19 +400,16 @@ const EditBusRouteDetails = () => {
   const handleFieldInputChange = async (text) => {
     setFieldInputText(text);
     
-    // Clear previous timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
     
-    // Only fetch place suggestions for location fields
     const isLocationField = 
       editingField === 'origin' || 
       editingField === 'destination' || 
       editingField?.startsWith('city-');
     
     if (isLocationField && text.length > 1) {
-      // Set new timeout for API call
       timeoutRef.current = setTimeout(async () => {
         try {
           const response = await fetch(
@@ -459,8 +429,8 @@ const EditBusRouteDetails = () => {
   };
 
   const handleSelectSuggestion = (suggestion) => {
-    // Extract just the city name (first part before comma)
-  const cityOnly = suggestion.description.split(',')[0].trim();
+    const cityOnly = suggestion.description.split(',')[0].trim();
+    
     if (editingField === 'origin') {
       setRouteData(prev => ({
         ...prev,
@@ -484,19 +454,15 @@ const EditBusRouteDetails = () => {
         name: cityOnly,
         placeId: suggestion.place_id
       };
-      
       setRouteData(prev => ({ ...prev, passingCities: updatedCities }));
     }
     
-    // Clear suggestions first then clear editing state
     setSuggestions([]);
-    setTimeout(() => {
-      setEditingField(null);
-    }, 100);
+    setEditingField(null);
   };
 
   const handleConfirmTextEdit = () => {
-    if(editingField === 'routeNum') {
+    if (editingField === 'routeNum') {
       const updated = {...routeData, routeNum: fieldInputText};
       setRouteData(updated);
       setOriginalRouteData(updated);
@@ -505,20 +471,16 @@ const EditBusRouteDetails = () => {
   };
 
   const handleBlurField = () => {
-    // Small delay to allow for suggestion selection
     setTimeout(() => {
       setSuggestions([]);
       
       if (editingField?.startsWith('city-') && fieldInputText.trim() === '') {
-        // If they left the input empty, remove the city
         const cityIndex = parseInt(editingField.split('-')[1]);
         handleRemovePassingCity(cityIndex);
       } else if (editingField === 'origin' || editingField === 'destination') {
         if (fieldInputText.trim() === '') {
-          // Don't update if empty
           setEditingField(null);
         } else {
-          // If they typed something but didn't select a suggestion, keep their text
           if (editingField === 'origin') {
             setRouteData(prev => ({
               ...prev,
@@ -539,7 +501,6 @@ const EditBusRouteDetails = () => {
           setEditingField(null);
         }
       } else if (editingField?.startsWith('city-')) {
-        // If they typed something but didn't select a suggestion, keep their text
         const cityIndex = parseInt(editingField.split('-')[1]);
         const updatedCities = [...routeData.passingCities];
         
@@ -556,52 +517,42 @@ const EditBusRouteDetails = () => {
   };
 
   useEffect(() => {
-    // Enable map button if origin and destination are set
     setShowSaveButton(
-      (routeData.origin.name && routeData.destination.name) &&
-      routeData.routeName && routeData.routeNum
+      routeData.origin.name && 
+      routeData.destination.name &&
+      routeData.routeName && 
+      routeData.routeNum
     );
   }, [routeData]);
 
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0066cc" />
-        <Text style={styles.loadingText}>Loading route details...</Text>
-      </View>
-    );
-  }
-
-  // Render different types of items for the FlatList
   const renderItem = ({ item }) => {
     switch (item.type) {
       case 'header':
         return (
           <View style={styles.headerContainer}>
-            {/* <IconButton
-              icon="arrow-left"
-              size={24}
-              onPress={() => router.back()}
-            /> */}
             <Text style={styles.heading}>Edit Route Details</Text>
+            {/* <TouchableOpacity 
+              style={styles.deleteButton}
+              onPress={() => setShowDeleteDialog(true)}
+            >
+              <Text style={styles.deleteButtonText}>Delete Route</Text>
+            </TouchableOpacity> */}
           </View>
         );
       case 'busInfo':
         return (
           <View style={styles.busInfoContainer}>
             <Text style={styles.busInfoText}>Bus: {plateNumber}</Text>
-            <Text style={styles.displayText} numberOfLines={1} ellipsizeMode="tail">
-                  Route Name: {routeData.routeName || 'Route name'}
-              </Text>
+            <Text style={styles.displayText} numberOfLines={2} ellipsizeMode="tail">
+              Route: {routeData.routeName || 'Not specified'}
+            </Text>
           </View>
         );
       case 'routeInfo':
         return (
           <View style={styles.sectionContainer}>
-            
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Route Number</Text>
-              
               {editingField === 'routeNum' ? (
                 <View style={styles.editingContainer}>
                   <TextInput
@@ -610,10 +561,9 @@ const EditBusRouteDetails = () => {
                     value={fieldInputText}
                     onChangeText={(text) => {
                       setFieldInputText(text);
-                      // Immediately update the routeData state
                       setRouteData(prev => ({...prev, routeNum: text}));
                     }}
-                    placeholder="Enter route number (e.g. 1544)"
+                    placeholder="Enter route number"
                     autoFocus={true}
                     onBlur={handleBlurField}
                     onSubmitEditing={handleConfirmTextEdit}
@@ -641,8 +591,7 @@ const EditBusRouteDetails = () => {
       case 'origin':
         return (
           <View style={[styles.inputContainer, { zIndex: 1000 }]}>
-            <Text style={styles.label}>Origin</Text>
-            
+            <Text style={styles.label}>Origin (Required)</Text>
             {editingField === 'origin' ? (
               <View style={[styles.editingContainer, { zIndex: 1000 }]}>
                 <TextInput
@@ -700,8 +649,6 @@ const EditBusRouteDetails = () => {
       case 'passingCity':
         const index = item.index;
         const city = item.city;
-        
-        // Calculate dynamic z-index to ensure proper stacking
         const zIndexValue = editingField === `city-${index}` ? 900 - index : (800 - index);
         
         return (
@@ -710,12 +657,6 @@ const EditBusRouteDetails = () => {
               <View style={styles.passingCityLabelContainer}>
                 <Text style={styles.passingCityLabel}>City {index + 1}</Text>
               </View>
-              <IconButton
-                icon="pencil"
-                size={20}
-                onPress={() => handleStartEditField(`city-${index}`, city.name)}
-                style={styles.editIcon}
-              />
               <IconButton
                 icon="close"
                 size={20}
@@ -755,6 +696,11 @@ const EditBusRouteDetails = () => {
                 onPress={() => handleStartEditField(`city-${index}`, city.name)}
               >
                 <Text style={styles.displayText} numberOfLines={2} ellipsizeMode="tail">{city.name}</Text>
+                <IconButton
+                  icon="pencil"
+                  size={20}
+                  style={styles.inlineEditIcon}
+                />
               </TouchableOpacity>
             )}
           </View>
@@ -768,8 +714,7 @@ const EditBusRouteDetails = () => {
       case 'destination':
         return (
           <View style={[styles.inputContainer, { zIndex: 700 }]}>
-            <Text style={styles.label}>Destination</Text>
-            
+            <Text style={styles.label}>Destination (Required)</Text>
             {editingField === 'destination' ? (
               <View style={[styles.editingContainer, { zIndex: 700 }]}>
                 <TextInput
@@ -833,6 +778,15 @@ const EditBusRouteDetails = () => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0066cc" />
+        <Text style={styles.loadingText}>Loading route details...</Text>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -848,12 +802,13 @@ const EditBusRouteDetails = () => {
           keyboardShouldPersistTaps="handled"
           removeClippedSubviews={false}
           ListFooterComponent={
-            // Add destination at the bottom if a field is being edited
             (editingField === 'origin' || editingField?.startsWith('city-')) ? (
               <View style={[styles.inputContainer, { zIndex: 1, marginTop: 200 }]}>
                 <Text style={styles.label}>Destination</Text>
                 <View style={styles.displayField}>
-                  <Text style={styles.displayText} numberOfLines={2} ellipsizeMode="tail">{routeData.destination.name}</Text>
+                  <Text style={styles.displayText} numberOfLines={2} ellipsizeMode="tail">
+                    {routeData.destination.name}
+                  </Text>
                 </View>
               </View>
             ) : <View style={{ height: 100 }} />
@@ -869,9 +824,37 @@ const EditBusRouteDetails = () => {
           </TouchableOpacity>
         )}
       </KeyboardAvoidingView>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && (
+        <View style={styles.dialogOverlay}>
+          <View style={styles.dialogContainer}>
+            <Text style={styles.dialogTitle}>Delete Route</Text>
+            <Text style={styles.dialogMessage}>Are you sure you want to delete this route?</Text>
+            <View style={styles.dialogButtons}>
+              <Button
+                mode="outlined"
+                onPress={() => setShowDeleteDialog(false)}
+                style={styles.dialogButton}
+              >
+                Cancel
+              </Button>
+              <Button
+                mode="contained"
+                onPress={handleDeleteRoute}
+                style={[styles.dialogButton, styles.deleteDialogButton]}
+                loading={isLoading}
+              >
+                Delete
+              </Button>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -884,13 +867,22 @@ const styles = StyleSheet.create({
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 20,
   },
   heading: {
     fontSize: 22,
     fontWeight: 'bold',
-    marginLeft: 10,
     flex: 1,
+  },
+  deleteButton: {
+    padding: 8,
+    backgroundColor: '#ffebee',
+    borderRadius: 8,
+  },
+  deleteButtonText: {
+    color: '#d32f2f',
+    fontWeight: '600',
   },
   busInfoContainer: {
     backgroundColor: '#e3f2fd',
@@ -907,6 +899,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#1976d2',
     fontWeight: '600',
+    marginBottom: 8,
   },
   sectionContainer: {
     backgroundColor: '#fff',
@@ -962,15 +955,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 16,
     backgroundColor: '#fff',
-  },
-  readOnlyField: {  // Add this new style
-    backgroundColor: '#f5f5f5',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 12,
-    padding: 16,
-    minHeight: 56,
-    justifyContent: 'center',
   },
   cityInput: {
     height: 56,
@@ -1074,11 +1058,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: '#1976d2',
   },
-  deleteButton: {
-    borderRadius: 12,
-    paddingVertical: 8,
-    borderColor: '#f44336',
-  },
   floatingAddButton: {
     position: 'absolute',
     bottom: 20,
@@ -1108,6 +1087,43 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#424242',
+  },
+  dialogOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  dialogContainer: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+  },
+  dialogTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  dialogMessage: {
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  dialogButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  dialogButton: {
+    marginLeft: 10,
+    minWidth: 80,
+  },
+  deleteDialogButton: {
+    backgroundColor: '#d32f2f',
   },
 });
 

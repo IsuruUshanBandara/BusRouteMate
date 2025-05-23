@@ -1,12 +1,13 @@
 import { View, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import React, { useEffect, useState } from 'react';
-import { TextInput, Button } from 'react-native-paper';
+import { TextInput, Button, HelperText } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { auth, db } from '../../db/firebaseConfig';
 import { collection, doc, setDoc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import { LogBox } from 'react-native';
+LogBox.ignoreLogs(['Please fill in all required fields']);
 const AddRegisterDriverBusScreen1 = () => {
     const router = useRouter();
     const params = useLocalSearchParams();
@@ -15,23 +16,40 @@ const AddRegisterDriverBusScreen1 = () => {
     const [loading, setLoading] = useState(true);
     const [ownerPhoneNumber, setOwnerPhoneNumber] = useState('');
     const [dataLoaded, setDataLoaded] = useState(false);
+    const [errors, setErrors] = useState({
+        licencePlateNum: false,
+        routeNum: Array(1).fill(false),
+        busRoute: Array(1).fill(false)
+    });
     
     // Load saved form data only once when component mounts
     useEffect(() => {
         const loadSavedData = async () => {
             try {
-                // If we're returning with passed parameters
+                
                 if (params?.busData) {
                     const busData = JSON.parse(params.busData);
                     setLicencePlateNum(busData.licencePlateNum || '');
                     setRoutes(busData.routes || [{ routeNum: '', busRoute: '' }]);
+                    // Initialize error arrays with the same length as routes
+                    setErrors({
+                        licencePlateNum: false,
+                        routeNum: Array(busData.routes?.length || 1).fill(false),
+                        busRoute: Array(busData.routes?.length || 1).fill(false)
+                    });
                 } else {
-                    // Otherwise try to load from storage
+                    
                     const savedFormData = await AsyncStorage.getItem('busRegistrationFormData_step1');
                     if (savedFormData) {
                         const formData = JSON.parse(savedFormData);
                         setLicencePlateNum(formData.licencePlateNum || '');
                         setRoutes(formData.routes || [{ routeNum: '', busRoute: '' }]);
+                        // Initialize error arrays with the same length as routes
+                        setErrors({
+                            licencePlateNum: false,
+                            routeNum: Array(formData.routes?.length || 1).fill(false),
+                            busRoute: Array(formData.routes?.length || 1).fill(false)
+                        });
                     }
                 }
                 setDataLoaded(true);
@@ -80,28 +98,90 @@ const AddRegisterDriverBusScreen1 = () => {
         );
     }
 
+    // Format bus route - Remove spaces and capitalize first letter and any letter after hyphen
+    const formatBusRoute = (route) => {
+        if (!route) return '';
+        
+        // Remove spaces
+        let formatted = route.replace(/\s+/g, '');
+        
+        // Capitalize first letter and any letter after a hyphen
+        formatted = formatted.replace(/(^|\-)([a-z])/g, (match) => match.toUpperCase());
+        
+        return formatted;
+    };
+
     // Handler to add a new route input
     const addRoute = () => {
-        setRoutes([...routes, { routeNum: '', busRoute: '' }]);
+        const newRoutes = [...routes, { routeNum: '', busRoute: '' }];
+        setRoutes(newRoutes);
+        
+       
+        setErrors({
+            ...errors,
+            routeNum: [...errors.routeNum, false],
+            busRoute: [...errors.busRoute, false]
+        });
     };
 
     // Handler to remove the last route input
     const removeLastRoute = () => {
         if (routes.length > 1) {
-            setRoutes(routes.slice(0, -1)); // Remove the last route pair
+            const newRoutes = routes.slice(0, -1);
+            setRoutes(newRoutes);
+            
+            
+            setErrors({
+                ...errors,
+                routeNum: errors.routeNum.slice(0, -1),
+                busRoute: errors.busRoute.slice(0, -1)
+            });
         }
+    };
+
+    // Validate all fields
+    const validateFields = () => {
+        let isValid = true;
+        const newErrors = {
+            licencePlateNum: false,
+            routeNum: Array(routes.length).fill(false),
+            busRoute: Array(routes.length).fill(false)
+        };
+        
+        // Check license plate
+        if (!licencePlateNum.trim()) {
+            newErrors.licencePlateNum = true;
+            isValid = false;
+        }
+        
+        // Check each route's fields
+        routes.forEach((route, index) => {
+            if (!route.routeNum.trim()) {
+                newErrors.routeNum[index] = true;
+                isValid = false;
+            }
+            
+            if (!route.busRoute.trim()) {
+                newErrors.busRoute[index] = true;
+                isValid = false;
+            }
+        });
+        
+        setErrors(newErrors);
+        return isValid;
     };
 
     // Handler to save details and navigate to the next screen with the data
     const handleSubmit = async () => {
         try {
-            const normalizedPlateNum = licencePlateNum.trim().toUpperCase();
-            const normalizedPhoneNum = ownerPhoneNumber.trim();
-            
-            if (!normalizedPlateNum) {
-                console.error("License Plate Number is required.");
+            // Validate all fields first
+            if (!validateFields()) {
+                console.error("Please fill in all required fields.");
                 return;
             }
+            
+            const normalizedPlateNum = licencePlateNum.trim().toUpperCase();
+            const normalizedPhoneNum = ownerPhoneNumber.trim();
             
             // Reference to the specific bus's route collection in Firestore
             const busRef = doc(db, `privateOwners/${normalizedPhoneNum}/buses/${normalizedPlateNum}`);
@@ -110,8 +190,14 @@ const AddRegisterDriverBusScreen1 = () => {
 
             const routesCollectionRef = collection(db, `routes`);
             
+            // Format routes before saving
+            const formattedRoutes = routes.map(route => ({
+                routeNum: route.routeNum.trim(),
+                busRoute: formatBusRoute(route.busRoute)
+            }));
+            
             // Save each route to Firestore with an auto-generated document ID
-            for (const route of routes) {
+            for (const route of formattedRoutes) {
                 const routeDocRef = doc(routesCollectionRef, `${normalizedPlateNum}-${route.busRoute}`);
                 await setDoc(routeDocRef, {
                     routeNum: route.routeNum,
@@ -123,8 +209,8 @@ const AddRegisterDriverBusScreen1 = () => {
             
             // Prepare the data to be passed to the next screen
             const busData = {
-                licencePlateNum,
-                routes,
+                licencePlateNum: normalizedPlateNum,
+                routes: formattedRoutes,
             };
 
             // Save the current form state before navigating
@@ -153,36 +239,74 @@ const AddRegisterDriverBusScreen1 = () => {
 
                         <TextInput 
                             style={styles.input}
-                            label="License Plate Number"
+                            label="License Plate Number *"
                             value={licencePlateNum}
-                            onChangeText={text => setLicencePlateNum(text)}
+                            onChangeText={text => {
+                                setLicencePlateNum(text);
+                                if (text.trim()) {
+                                    setErrors({...errors, licencePlateNum: false});
+                                }
+                            }}
                             mode="outlined"
+                            error={errors.licencePlateNum}
                         />
+                        {errors.licencePlateNum && (
+                            <HelperText type="error" visible={errors.licencePlateNum}>
+                                License plate number is required
+                            </HelperText>
+                        )}
 
                         {routes.map((route, index) => (
                             <View key={index}>
                                 <TextInput 
                                     style={styles.input}
-                                    label={`Route Number ${index + 1}`}
+                                    label={`Route Number ${index + 1} *`}
                                     value={route.routeNum}
                                     onChangeText={text => {
                                         const updatedRoutes = [...routes];
                                         updatedRoutes[index].routeNum = text;
                                         setRoutes(updatedRoutes);
+                                        
+                                        // Clear error when typing
+                                        if (text.trim()) {
+                                            const updatedErrors = {...errors};
+                                            updatedErrors.routeNum[index] = false;
+                                            setErrors(updatedErrors);
+                                        }
                                     }}
                                     mode="outlined"
+                                    error={errors.routeNum[index]}
                                 />
+                                {errors.routeNum[index] && (
+                                    <HelperText type="error" visible={errors.routeNum[index]}>
+                                        Route number is required
+                                    </HelperText>
+                                )}
+                                
                                 <TextInput 
                                     style={styles.input}
-                                    label={`Bus Route ${index + 1} (e.g., Kegalle - Avissawella)`}
+                                    label={`Bus Route ${index + 1} (e.g., Kegalle - Avissawella) *`}
                                     value={route.busRoute}
                                     onChangeText={text => {
                                         const updatedRoutes = [...routes];
                                         updatedRoutes[index].busRoute = text;
                                         setRoutes(updatedRoutes);
+                                        
+                                        // Clear error when typing
+                                        if (text.trim()) {
+                                            const updatedErrors = {...errors};
+                                            updatedErrors.busRoute[index] = false;
+                                            setErrors(updatedErrors);
+                                        }
                                     }}
                                     mode="outlined"
+                                    error={errors.busRoute[index]}
                                 />
+                                {errors.busRoute[index] && (
+                                    <HelperText type="error" visible={errors.busRoute[index]}>
+                                        Bus route is required
+                                    </HelperText>
+                                )}
                             </View>
                         ))}
 
@@ -243,7 +367,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     input: {
-        marginVertical: 10,
+        marginVertical: 5,
     },
     addButton: {
         marginTop: 10,
@@ -256,7 +380,7 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
         width: '100%',
         alignSelf: 'center',
-        backgroundColor: '#D32F2F', // Optional: Different color for remove button
+        backgroundColor: '#D32F2F',
     },
     submitButton: {
         marginTop: 20,

@@ -33,7 +33,7 @@ const INITIAL_POSITION = {
 const AddRegisterDriverBusScreen2 = () => {
   const { busData } = useLocalSearchParams();
   
-  // State management
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [coordinates, setCoordinates] = useState([]);
@@ -146,7 +146,7 @@ const AddRegisterDriverBusScreen2 = () => {
           routesData.push({
             ...route,
             coordinates: coords,
-            distance: 0, // Will be calculated later
+            distance: 0, 
             duration: 0
           });
         }
@@ -271,7 +271,7 @@ const AddRegisterDriverBusScreen2 = () => {
         const routeRef = doc(db, 'routes', `${plateNum}-${route.busRoute}`);
         await setDoc(routeRef, routeData);
 
-        // Also save under the owner's collection
+        
         // if (ownerPhoneNumber) {
         //   const ownerRouteRef = doc(
         //     db, 
@@ -304,7 +304,7 @@ const AddRegisterDriverBusScreen2 = () => {
         },
         { 
           text: "Save All", 
-          onPress: handleSaveAllRoutes  // Call your existing save function if confirmed
+          onPress: handleSaveAllRoutes  
         }
       ],
       { cancelable: true }
@@ -395,10 +395,10 @@ const AddRegisterDriverBusScreen2 = () => {
       </MapView>
 
       <View style={styles.infoContainer}>
-        <View style={styles.routeInfo}>
+        {/* <View style={styles.routeInfo}>
           <Text style={styles.infoText}>Distance: {(distance / 1000).toFixed(2)} km</Text>
           <Text style={styles.infoText}>Duration: {Math.ceil(duration / 60)} min</Text>
-        </View>
+        </View> */}
         
         <View style={styles.buttonContainer}>
           <TouchableOpacity 
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
   },
   map: {
     width: '100%',
-    height: '55%',
+    height: '64%',
   },
   infoContainer: {
     width: '100%',
@@ -527,6 +527,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
+    // height: '20%',
   },
   routeInfo: {
     marginBottom: 15,
@@ -539,6 +540,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginBottom: 15,
+    // marginTop: 80,
   },
   button: {
     padding: 12,
@@ -557,6 +559,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 10,
+    marginBottom: 20,
   },
   navButton: {
     padding: 12,

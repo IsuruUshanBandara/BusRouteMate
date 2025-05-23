@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView, ActivityIndicator } from 'react-native';
 import { TextInput, Button, HelperText } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { auth } from '../../db/firebaseConfig';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { db } from '../../db/firebaseConfig'; 
+import { doc, getDoc } from 'firebase/firestore'; 
 import { LogBox } from 'react-native';
-
-// Suppress Firebase auth error messages that appear from the bottom
 LogBox.ignoreLogs(['firebase/wrong-password', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email', 'auth/too-many-requests','Error (auth/invalid-credential)']);
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -19,55 +19,79 @@ const PrivateBusSignIn = () => {
     const [emailError, setEmailError] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [generalError, setGeneralError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const { t } = useTranslation();
 
-    const handleSignIn = () => {
+    const handleSignIn = async () => {
         // Reset previous errors
         setEmailError('');
         setPasswordError('');
         setGeneralError('');
+        setIsLoading(true); // Start loading indicator
 
         // Validation
         if (!email) {
             setEmailError(t('Email is required'));
+            setIsLoading(false); // Stop loading on validation error
             return;
         }
         
         if (!password) {
             setPasswordError(t('Password is required'));
+            setIsLoading(false); // Stop loading on validation error
             return;
         }
 
-        signInWithEmailAndPassword(auth, email, password)
-            .then((userCredential) => { 
-                const user = userCredential.user;
-                console.log("User signed in successfully:", user);
+        try {
+            // Step 1: Authenticate with Firebase Auth
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+            console.log("User authenticated successfully:", user.email);
+            
+            // Step 2: Check if user exists in ownerDetails collection
+            const ownerDocRef = doc(db, "ownerDetails", email);
+            const ownerDocSnap = await getDoc(ownerDocRef);
+            
+            if (ownerDocSnap.exists()) {
+                // User is a verified owner, proceed to owner home
+                console.log("Owner document exists, proceeding to owner home");
                 router.push('../../screens/owner/ownerHome');
-            }).catch((error) => {
-                console.error("Error signing user:", error.message);
+            } else {
+                // No owner document found for this user
+                console.log("No owner document found for:", email);
+                setGeneralError(t('You do not have an owner account. Please create an account.'));
                 
-                // Handle specific Firebase Auth errors
-                switch (error.code) {
-                    case 'auth/invalid-email':
-                        setEmailError(t('Invalid email address format'));
-                        break;
-                    case 'auth/user-not-found':
-                        setEmailError(t('No account found with this email'));
-                        break;
-                    case 'auth/invalid-credential':
-                        setPasswordError(t('Incorrect password'));
-                        break;
-                    case 'auth/too-many-requests':
-                        setGeneralError(t('Too many failed attempts. Please try again later'));
-                        break;
-                    case 'auth/network-request-failed':
-                        setGeneralError(t('Network error. Please check your connection'));
-                        break;
-                    default:
-                        setGeneralError(t('Sign in failed. Please try again'));
-                        break;
-                }
-            });
+                auth.signOut();
+            }
+            
+        } catch (error) {
+            console.error("Error during sign in process:", error.message);
+            
+            // Handle specific Firebase Auth errors
+            switch (error.code) {
+                case 'auth/invalid-email':
+                    setEmailError(t('Invalid email address format'));
+                    break;
+                case 'auth/user-not-found':
+                    setEmailError(t('No account found with this email'));
+                    break;
+                case 'auth/invalid-credential':
+                    setPasswordError(t('Incorrect password'));
+                    break;
+                case 'auth/too-many-requests':
+                    setGeneralError(t('Too many failed attempts. Please try again later'));
+                    break;
+                case 'auth/network-request-failed':
+                    setGeneralError(t('Network error. Please check your connection'));
+                    break;
+                default:
+                    setGeneralError(t('Sign in failed. Please try again'));
+                    break;
+            }
+        } finally {
+            // Always stop loading when done, regardless of success or failure
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -156,8 +180,16 @@ const PrivateBusSignIn = () => {
                                     labelStyle={styles.buttonText}
                                     onPress={handleSignIn}
                                     buttonColor="#1976d2"
+                                    disabled={isLoading}
                                 >
-                                    {t('signIn')}
+                                    {isLoading ? (
+                                        <View style={styles.loadingContainer}>
+                                            <ActivityIndicator size="small" color="white" />
+                                            <Text style={styles.loadingText}>{t('Signing in...')}</Text>
+                                        </View>
+                                    ) : (
+                                        t('signIn')
+                                    )}
                                 </Button>
                                 
                                 <Text style={styles.orText}>OR</Text>
@@ -282,5 +314,15 @@ const styles = StyleSheet.create({
     generalErrorText: {
         color: '#d32f2f',
         textAlign: 'center',
+    },
+    loadingContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    loadingText: {
+        color: 'white',
+        marginLeft: 8,
+        fontWeight: 'bold',
     }
 });
